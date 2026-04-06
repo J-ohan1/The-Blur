@@ -10,8 +10,6 @@ export interface BeamFrameState {
   color: string   // hex color
   iris: number    // 0–100 (beam opening size)
   dimmer: number  // 0–100 (brightness)
-  tilt: number    // -45 to 45
-  pan: number     // -45 to 45
   visible: boolean
 }
 
@@ -39,15 +37,14 @@ function nextFrameId(): string {
 }
 
 function defaultBeam(x: number, y: number): BeamFrameState {
-  return { x, y, color: '#ffffff', iris: 80, dimmer: 100, tilt: 0, pan: 0, visible: true }
+  return { x, y, color: '#ffffff', iris: 80, dimmer: 100, visible: true }
 }
 
 function blankFrame(): EffectFrame {
   const beams: Record<number, BeamFrameState> = {}
   for (let i = 1; i <= 15; i++) {
-    const col = (i - 1) % 5
-    const row = Math.floor((i - 1) / 5)
-    beams[i] = defaultBeam(15 + col * 17.5, 25 + row * 25)
+    // 1x15 straight row — evenly spaced horizontally, centered vertically
+    beams[i] = defaultBeam(3 + (i - 1) * 6.5, 50)
   }
   return { id: nextFrameId(), beams, duration: 200 }
 }
@@ -436,6 +433,7 @@ export const useEffectEditorStore = create<EffectEditorState>((set, get) => ({
       undoStack: [],
       redoStack: [],
       presetBrowserOpen: false,
+      effectPanelView: 'editor',
     })
   },
 

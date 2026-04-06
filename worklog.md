@@ -48,3 +48,31 @@ Stage Summary:
 - 10 files modified, 1 new file (CustomisationPanel.tsx)
 - Zero lint errors, clean compilation
 - Full monochrome redesign across all panels
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Effect Panel overhaul — 1x15 beam row, remove tilt/pan, add color wheel, all 36 presets, easter eggs
+
+Work Log:
+- Updated effect-editor-store.ts: removed tilt and pan from BeamFrameState interface
+- Changed blankFrame() to arrange beams in 1x15 straight row (x: 3 + (i-1)*6.5, y: 50)
+- Rewrote effect-presets.ts: created frame generators for all 36 built-in effects (14 waves, 3 chases, 10 patterns, 3 color, 6 advanced)
+- Presets now generate procedural frame animations matching each effect's behavior
+- Updated EffectEditor.tsx: removed Tilt and Pan sliders from PropertiesPanel
+- Added canvas-based Color Wheel component with HSV hue ring, saturation center area, brightness slider
+- Added directional labels (UP/DOWN/L/R) on canvas for tilt direction reference
+- Added beam strip (1x15 row) above the timeline for quick beam selection
+- Preset Browser now groups presets by category matching Control Panel (Waves, Chase, Pattern, Color, Advanced)
+- Category filter shows preset counts, search bar filters across all presets
+- Easter eggs added: naming effect "blur" → save button glow, 31 frames → "The Extra Mile", all beams aligned → toast, max speed (4x) + 30+ frames → "Maximum velocity", 42 frames → "The meaning of life", typing "42" in save dialog → "The answer to everything", all beams iris=0 when selected → "Invisible mode", all beams same non-white color → "Beam synchronization"
+- Fixed React Compiler lint errors: refactored ColorWheel to use useRef + useEffect instead of useState in effect
+
+Stage Summary:
+- 4 files modified: effect-editor-store.ts, effect-presets.ts, EffectEditor.tsx, EffectPanel.tsx
+- Beams now in 1x15 straight row layout (no more 3x5 grid)
+- Tilt and pan properties completely removed
+- Color wheel added to properties panel for per-beam color selection
+- All 36 built-in effects available as presets with procedural frame data
+- 8+ easter eggs throughout the effect panel
+- Zero lint errors, clean compilation

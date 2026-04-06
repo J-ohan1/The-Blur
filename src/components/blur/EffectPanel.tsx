@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useEffectEditorStore, type SavedCustomEffect } from '@/store/effect-editor-store'
 import { useBlurStore } from '@/store/blur-store'
 import { EFFECT_PRESETS } from '@/lib/effect-presets'
+import { EFFECTS_CATEGORIES } from './effects-categories'
 
 /* ─── Type labels ───────────────────────────────── */
 
@@ -264,6 +265,17 @@ function SaveDialog() {
   const saveLocal = useEffectEditorStore((s) => s.saveLocal)
   const addToast = useBlurStore((s) => s.addToast)
 
+  // Easter egg: type "42" as effect name
+  const name42Ref = useRef(false)
+  const handleNameChange = (val: string) => {
+    setSaveName(val)
+    if (val.trim() === '42' && !name42Ref.current) {
+      name42Ref.current = true
+      addToast('The answer to everything, apparently', 'success')
+    }
+    if (val.trim() !== '42') name42Ref.current = false
+  }
+
   if (!saveDialogOpen) return null
 
   const handleSaveLocal = () => {
@@ -336,7 +348,7 @@ function SaveDialog() {
           <input
             type="text"
             value={saveName}
-            onChange={(e) => setSaveName(e.target.value)}
+            onChange={(e) => handleNameChange(e.target.value)}
             placeholder="Effect name..."
             maxLength={30}
             className="w-full h-8 px-3 text-[12px] text-white bg-neutral-900/60 border border-neutral-800 rounded-lg outline-none placeholder:text-neutral-700 focus:border-neutral-600 transition-colors"
@@ -426,28 +438,25 @@ function SaveDialog() {
   )
 }
 
-/* ─── Preset Browser Modal ──────────────────────── */
+/* ═══════════════════════════════════════════════════
+   Preset Browser Modal
+   Shows ALL premade effects (same as Control Panel)
+   + custom presets with frame data
+   ═══════════════════════════════════════════════════ */
 
 function PresetBrowser() {
   const presetBrowserOpen = useEffectEditorStore((s) => s.presetBrowserOpen)
   const closePresetBrowser = useEffectEditorStore((s) => s.closePresetBrowser)
   const loadPreset = useEffectEditorStore((s) => s.loadPreset)
-  const openEditor = useEffectEditorStore((s) => s.openEditor)
   const addToast = useBlurStore((s) => s.addToast)
 
   const [search, setSearch] = useState('')
-  const [filterType, setFilterType] = useState<string>('all')
+  const [activeCategory, setActiveCategory] = useState<string>('all')
 
   // Easter egg: click chase 3 times fast
   const [chaseClicks, setChaseClicks] = useState<{ count: number; last: number }>({ count: 0, last: 0 })
 
   if (!presetBrowserOpen) return null
-
-  const filtered = EFFECT_PRESETS.filter((p) => {
-    if (filterType !== 'all' && p.type !== filterType) return false
-    if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false
-    return true
-  })
 
   const handleLoadPreset = (preset: SavedCustomEffect) => {
     // Easter egg check for chase
@@ -463,13 +472,22 @@ function PresetBrowser() {
     loadPreset(preset)
   }
 
-  const filterTypes = [
+  // Filter presets by search and category
+  const filteredPresets = EFFECT_PRESETS.filter((p) => {
+    if (activeCategory !== 'all') {
+      if (!p.tags.includes(activeCategory)) return false
+    }
+    if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false
+    return true
+  })
+
+  const categories = [
     { value: 'all', label: 'All' },
+    { value: 'wave', label: 'Waves' },
     { value: 'chase', label: 'Chase' },
-    { value: 'wave', label: 'Wave' },
-    { value: 'movement', label: 'Movement' },
     { value: 'pattern', label: 'Pattern' },
-    { value: 'strobe', label: 'Strobe' },
+    { value: 'color', label: 'Color' },
+    { value: 'advanced', label: 'Advanced' },
   ]
 
   return (
@@ -482,7 +500,7 @@ function PresetBrowser() {
         onClick={closePresetBrowser}
       />
       <motion.div
-        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[90] w-[520px] max-h-[70vh] rounded-xl border border-neutral-800 bg-neutral-950 flex flex-col overflow-hidden"
+        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[90] w-[580px] max-h-[75vh] rounded-xl border border-neutral-800 bg-neutral-950 flex flex-col overflow-hidden"
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
@@ -491,7 +509,10 @@ function PresetBrowser() {
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-neutral-800/60 flex-shrink-0">
-          <span className="text-[13px] font-semibold text-white">Presets</span>
+          <div>
+            <span className="text-[13px] font-semibold text-white">Presets</span>
+            <span className="text-[10px] text-neutral-600 ml-2">All premade effects</span>
+          </div>
           <button
             className="text-neutral-500 hover:text-white transition-colors cursor-pointer text-sm"
             onClick={closePresetBrowser}
@@ -510,64 +531,103 @@ function PresetBrowser() {
             className="w-full h-8 px-3 text-[12px] text-white bg-neutral-900/60 border border-neutral-800 rounded-lg outline-none placeholder:text-neutral-700 focus:border-neutral-600 transition-colors mb-2"
           />
           <div className="flex gap-1.5">
-            {filterTypes.map((ft) => (
+            {categories.map((cat) => (
               <button
-                key={ft.value}
+                key={cat.value}
                 className={`px-2.5 py-1 rounded-md text-[10px] font-medium border transition-colors cursor-pointer ${
-                  filterType === ft.value
+                  activeCategory === cat.value
                     ? 'bg-neutral-800/60 border-neutral-600 text-white'
                     : 'border-neutral-800/40 text-neutral-600 hover:text-neutral-300'
                 }`}
-                onClick={() => setFilterType(ft.value)}
+                onClick={() => setActiveCategory(cat.value)}
               >
-                {ft.label}
+                {cat.label}
+                {cat.value !== 'all' && (
+                  <span className="ml-1 text-[8px] opacity-60">
+                    ({EFFECT_PRESETS.filter(p => p.tags.includes(cat.value)).length})
+                  </span>
+                )}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Preset Grid */}
+        {/* Preset Grid - grouped by category */}
         <div className="flex-1 overflow-y-auto custom-scrollbar p-4">
-          {filtered.length === 0 ? (
+          {filteredPresets.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-[12px] text-neutral-600">No presets found</p>
             </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-2">
-              {filtered.map((preset) => (
-                <div
-                  key={preset.id}
-                  className="rounded-lg border border-neutral-800/60 bg-neutral-900/30 p-3 hover:border-neutral-700 transition-colors cursor-pointer"
-                  onClick={() => handleLoadPreset(preset)}
-                >
-                  <p className="text-[12px] font-semibold text-neutral-200 mb-1">{preset.name}</p>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-neutral-800/60 text-neutral-500">
-                      {TYPE_BADGE[preset.type] ?? preset.type}
+          ) : activeCategory === 'all' ? (
+            /* Grouped view */
+            EFFECTS_CATEGORIES.map((cat) => {
+              const catPresets = filteredPresets.filter((p) => p.tags.includes(cat.category))
+              if (catPresets.length === 0) return null
+              return (
+                <div key={cat.category} className="mb-4 last:mb-0">
+                  <div className="px-1 py-1.5 mb-2">
+                    <span className="text-[10px] font-semibold uppercase tracking-widest text-neutral-600">
+                      {cat.label}
                     </span>
-                    <span className="text-[9px] text-neutral-700">{preset.frames.length} frames</span>
+                    <span className="text-[9px] text-neutral-800 ml-2">({catPresets.length})</span>
                   </div>
-                  <div className="flex flex-wrap gap-1">
-                    {preset.tags.map((tag) => (
-                      <span key={tag} className="text-[8px] px-1.5 py-0.5 rounded bg-neutral-800/40 text-neutral-600">
-                        {tag}
-                      </span>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {catPresets.map((preset) => (
+                      <PresetCard key={preset.id} preset={preset} onClick={() => handleLoadPreset(preset)} />
                     ))}
                   </div>
                 </div>
+              )
+            })
+          ) : (
+            /* Single category view */
+            <div className="grid grid-cols-3 gap-1.5">
+              {filteredPresets.map((preset) => (
+                <PresetCard key={preset.id} preset={preset} onClick={() => handleLoadPreset(preset)} />
               ))}
             </div>
           )}
         </div>
 
-        {/* Hub section */}
+        {/* Footer */}
         <div className="px-4 py-3 border-t border-neutral-800/60 flex-shrink-0">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] text-neutral-600">Community Hub</span>
-            <span className="text-[10px] text-neutral-700 px-2 py-0.5 rounded bg-neutral-800/30">Coming soon</span>
+            <span className="text-[11px] text-neutral-600">
+              {EFFECT_PRESETS.length} premade effects
+            </span>
+            <span className="text-[10px] text-neutral-700 px-2 py-0.5 rounded bg-neutral-800/30">
+              Hub coming soon
+            </span>
           </div>
         </div>
       </motion.div>
     </>
+  )
+}
+
+/* ─── Preset Card ───────────────────────────────── */
+
+function PresetCard({
+  preset,
+  onClick,
+}: {
+  preset: SavedCustomEffect
+  onClick: () => void
+}) {
+  return (
+    <motion.div
+      className="rounded-lg border border-neutral-800/60 bg-neutral-900/30 p-2.5 hover:border-neutral-700 transition-colors cursor-pointer"
+      onClick={onClick}
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.97 }}
+    >
+      <p className="text-[11px] font-semibold text-neutral-200 mb-1 truncate">{preset.name}</p>
+      <div className="flex items-center gap-1.5">
+        <span className="text-[8px] px-1.5 py-0.5 rounded bg-neutral-800/60 text-neutral-500">
+          {TYPE_BADGE[preset.type] ?? preset.type}
+        </span>
+        <span className="text-[8px] text-neutral-700">{preset.frames.length}F</span>
+      </div>
+    </motion.div>
   )
 }
