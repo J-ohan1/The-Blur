@@ -22,21 +22,43 @@ interface ToastMessage {
   type: 'warning' | 'success' | 'error'
 }
 
+// Each "laser fixture" has 15 beams
+export const BEAMS_PER_FIXTURE = 15
+
+export interface LaserGroup {
+  id: string
+  name: string
+  mode: 'fixture' | 'individual'
+  // fixture mode: which fixture numbers are selected (1, 2, 3...)
+  selectedFixtures: number[]
+  // individual mode: which specific beams are selected e.g. "3-7" means fixture 3 beam 7
+  selectedBeams: string[]
+  createdAt: number
+}
+
 interface BlurState {
   // App phase
   phase: 'landing' | 'welcome' | 'main'
-  activePanel: 'home' | 'control' | 'player'
+  activePanel: 'home' | 'control' | 'player' | 'group'
 
-  // Current user (Johan = staff by default)
+  // Current user
   currentUser: PlayerData
-
-  // Mock player list
   players: PlayerData[]
 
   // Player panel
   playerSearch: string
   playerFilter: PlayerRole | 'all'
   toasts: ToastMessage[]
+
+  // Group panel
+  groups: LaserGroup[]
+  groupModalOpen: boolean  // false = list view, true = creating/editing
+  editingGroupId: string | null  // null = new, string = editing
+  groupMode: 'fixture' | 'individual'
+  selectedFixtures: number[]
+  selectedBeams: string[]
+  groupNameInput: string
+  deleteConfirmId: string | null  // which group is awaiting delete confirmation
 
   // UI
   showProfileDropdown: boolean
@@ -60,7 +82,7 @@ interface BlurState {
 
   // Actions
   enterPanel: () => void
-  setActivePanel: (panel: 'home' | 'control' | 'player') => void
+  setActivePanel: (panel: 'home' | 'control' | 'player' | 'group') => void
   toggleProfileDropdown: () => void
   closeProfileDropdown: () => void
   checkEasterEgg: () => void
@@ -82,6 +104,18 @@ interface BlurState {
   removePlayer: (targetId: string) => void
   kickPlayer: (targetId: string) => void
   dismissToast: (id: string) => void
+
+  // Group panel
+  openGroupModal: (editId?: string) => void
+  closeGroupModal: () => void
+  setGroupMode: (mode: 'fixture' | 'individual') => void
+  toggleFixture: (fixtureNum: number) => void
+  toggleBeam: (beamKey: string) => void
+  setGroupNameInput: (v: string) => void
+  saveGroup: () => void
+  deleteGroup: (id: string) => void
+  confirmDeleteGroup: (id: string) => void
+  cancelDeleteGroup: () => void
 }
 
 /* ─── Role helpers ───────────────────────────────── */
@@ -115,55 +149,44 @@ export function canPerform(
   targetRole: PlayerRole,
   action: Action
 ): { allowed: boolean; reason: string } {
-  // Staff can do almost everything except remove hardcoded whitelists
   if (viewerRole === 'staff') {
-    if (action === 'remove' && targetRole === 'hardcoded_whitelist') {
-      return { allowed: false, reason: "Can't remove hardcoded whitelisted users" }
-    }
-    if (action === 'whitelist' && targetRole === 'staff') {
-      return { allowed: false, reason: 'Staff is already at the highest rank' }
-    }
-    if (action === 'kick' && (targetRole === 'staff' || targetRole === 'hardcoded_whitelist')) {
-      return { allowed: false, reason: targetRole === 'staff' ? "Can't kick staff" : "Can't kick hardcoded whitelisted users" }
-    }
-    if (action === 'remove' && targetRole === 'staff') {
-      return { allowed: false, reason: "Can't remove staff" }
-    }
+    if (action === 'remove' && targetRole === 'hardcoded_whitelist') return { allowed: false, reason: "Can't remove hardcoded whitelisted users" }
+    if (action === 'whitelist' && targetRole === 'staff') return { allowed: false, reason: 'Staff is already at the highest rank' }
+    if (action === 'kick' && (targetRole === 'staff' || targetRole === 'hardcoded_whitelist')) return { allowed: false, reason: targetRole === 'staff' ? "Can't kick staff" : "Can't kick hardcoded whitelisted users" }
+    if (action === 'remove' && targetRole === 'staff') return { allowed: false, reason: "Can't remove staff" }
     return { allowed: true, reason: '' }
   }
-
-  // Hardcoded whitelisted
   if (viewerRole === 'hardcoded_whitelist') {
-    if (targetRole === 'staff') {
-      return { allowed: false, reason: "Can't perform actions on staff" }
-    }
-    if (targetRole === 'hardcoded_whitelist') {
-      return { allowed: false, reason: "Can't perform actions on whitelisted users" }
-    }
-    if (action === 'remove' && targetRole === 'hardcoded_whitelist') {
-      return { allowed: false, reason: "Can't remove whitelisted users" }
-    }
-    // Can whitelist, remove (temp), kick normal/blacklisted
+    if (targetRole === 'staff') return { allowed: false, reason: "Can't perform actions on staff" }
+    if (targetRole === 'hardcoded_whitelist') return { allowed: false, reason: "Can't perform actions on whitelisted users" }
+    if (action === 'remove' && targetRole === 'hardcoded_whitelist') return { allowed: false, reason: "Can't remove whitelisted users" }
     return { allowed: true, reason: '' }
   }
-
-  // Temp whitelisted — can't do anything to anyone
-  if (viewerRole === 'temp_whitelist') {
-    return { allowed: false, reason: 'Lack of authorities' }
-  }
-
-  // Normal / blacklisted — no permissions
   return { allowed: false, reason: 'Lack of authorities' }
 }
 
-/* Which buttons are active for a target based on their current role */
 export function getActiveButtons(targetRole: PlayerRole): { whitelist: boolean; remove: boolean; kick: boolean } {
-  switch (targetRole) {
-    case 'temp_whitelist':
-      return { whitelist: false, remove: true, kick: true }
-    default:
-      return { whitelist: true, remove: false, kick: true }
+  if (targetRole === 'temp_whitelist') return { whitelist: false, remove: true, kick: true }
+  return { whitelist: true, remove: false, kick: true }
+}
+
+/* ─── Name validation ────────────────────────────── */
+
+const FORBIDDEN_PATTERNS = [
+  /\b(fuck|shit|ass|bitch|damn|crap|dick|cock|piss|slut|whore|nigger|nigga|retard|faggot)\b/i,
+  /\b(kill\s?(yourself|urself)|kys|suicide|self.harm)\b/i,
+  /\b(hack|exploit|cheat|inject)\b/i,
+]
+
+export function validateGroupName(name: string): { valid: boolean; reason: string } {
+  const trimmed = name.trim()
+  if (trimmed.length === 0) return { valid: false, reason: 'Group name is required' }
+  if (trimmed.length < 2) return { valid: false, reason: 'Name must be at least 2 characters' }
+  if (trimmed.length > 30) return { valid: false, reason: 'Name must be 30 characters or less' }
+  for (const pattern of FORBIDDEN_PATTERNS) {
+    if (pattern.test(trimmed)) return { valid: false, reason: 'Name contains inappropriate content' }
   }
+  return { valid: true, reason: '' }
 }
 
 /* ─── Effects data ───────────────────────────────── */
@@ -240,15 +263,25 @@ export const useBlurStore = create<BlurState>((set, get) => ({
   playerFilter: 'all',
   toasts: [],
 
+  // Group
+  groups: [],
+  groupModalOpen: false,
+  editingGroupId: null,
+  groupMode: 'fixture',
+  selectedFixtures: [],
+  selectedBeams: [],
+  groupNameInput: '',
+  deleteConfirmId: null,
+
+  // UI
   showProfileDropdown: false,
   showEasterEgg: false,
-
   easterEggClicks: 0,
   lastEasterEggClick: 0,
-
   startTime: Date.now(),
   timeSpent: 0,
 
+  // Control
   masterOnOff: true,
   holdOnOff: false,
   fadeOnOff: false,
@@ -258,9 +291,7 @@ export const useBlurStore = create<BlurState>((set, get) => ({
 
   enterPanel: () => {
     set({ phase: 'welcome' })
-    setTimeout(() => {
-      set({ phase: 'main', activePanel: 'home', startTime: Date.now() })
-    }, 2500)
+    setTimeout(() => set({ phase: 'main', activePanel: 'home', startTime: Date.now() }), 2500)
   },
 
   setActivePanel: (panel) => set({ activePanel: panel, showProfileDropdown: false }),
@@ -300,7 +331,7 @@ export const useBlurStore = create<BlurState>((set, get) => ({
     return `${s}s`
   },
 
-  // Control actions
+  // Control
   setMasterOnOff: (v) => set({ masterOnOff: v }),
   setHoldOnOff: (v) => set({ holdOnOff: v }),
   setFadeOnOff: (v) => set({ fadeOnOff: v }),
@@ -315,18 +346,9 @@ export const useBlurStore = create<BlurState>((set, get) => ({
     const { currentUser, players } = get()
     const target = players.find((p) => p.id === targetId)
     if (!target) return
-
     const check = canPerform(currentUser.role, target.role, 'whitelist')
-    if (!check.allowed) {
-      get().addToast(check.reason, 'warning')
-      return
-    }
-
-    set({
-      players: players.map((p) =>
-        p.id === targetId ? { ...p, role: 'temp_whitelist' as const } : p
-      ),
-    })
+    if (!check.allowed) { get().addToast(check.reason, 'warning'); return }
+    set({ players: players.map((p) => p.id === targetId ? { ...p, role: 'temp_whitelist' as const } : p) })
     get().addToast(`${target.name} has been temp whitelisted`, 'success')
   },
 
@@ -334,18 +356,9 @@ export const useBlurStore = create<BlurState>((set, get) => ({
     const { currentUser, players } = get()
     const target = players.find((p) => p.id === targetId)
     if (!target) return
-
     const check = canPerform(currentUser.role, target.role, 'remove')
-    if (!check.allowed) {
-      get().addToast(check.reason, 'warning')
-      return
-    }
-
-    set({
-      players: players.map((p) =>
-        p.id === targetId ? { ...p, role: 'normal' as const } : p
-      ),
-    })
+    if (!check.allowed) { get().addToast(check.reason, 'warning'); return }
+    set({ players: players.map((p) => p.id === targetId ? { ...p, role: 'normal' as const } : p) })
     get().addToast(`${target.name} has been removed`, 'success')
   },
 
@@ -353,30 +366,108 @@ export const useBlurStore = create<BlurState>((set, get) => ({
     const { currentUser, players } = get()
     const target = players.find((p) => p.id === targetId)
     if (!target) return
-
     const check = canPerform(currentUser.role, target.role, 'kick')
-    if (!check.allowed) {
-      get().addToast(check.reason, 'warning')
-      return
-    }
-
+    if (!check.allowed) { get().addToast(check.reason, 'warning'); return }
     set({ players: players.filter((p) => p.id !== targetId) })
     get().addToast(`${target.name} has been kicked`, 'success')
   },
 
-  dismissToast: (id) => {
-    set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }))
-  },
+  dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
 
-  // Internal helper
   addToast: (text: string, type: 'warning' | 'success' | 'error') => {
     const id = `toast-${++toastIdCounter}`
-    const toast: ToastMessage = { id, text, type }
-    set((s) => ({ toasts: [...s.toasts, toast] }))
-
-    // Auto dismiss after 3 seconds
-    setTimeout(() => {
-      get().dismissToast(id)
-    }, 3000)
+    set((s) => ({ toasts: [...s.toasts, { id, text, type }] }))
+    setTimeout(() => get().dismissToast(id), 3000)
   },
+
+  // Group panel
+  openGroupModal: (editId?: string) => {
+    if (editId) {
+      const group = get().groups.find((g) => g.id === editId)
+      if (group) {
+        set({
+          groupModalOpen: true,
+          editingGroupId: editId,
+          groupMode: group.mode,
+          selectedFixtures: [...group.selectedFixtures],
+          selectedBeams: [...group.selectedBeams],
+          groupNameInput: group.name,
+        })
+      }
+    } else {
+      set({
+        groupModalOpen: true,
+        editingGroupId: null,
+        groupMode: 'fixture',
+        selectedFixtures: [],
+        selectedBeams: [],
+        groupNameInput: '',
+      })
+    }
+  },
+
+  closeGroupModal: () => set({ groupModalOpen: false, editingGroupId: null }),
+
+  setGroupMode: (mode) => set({ groupMode: mode, selectedFixtures: [], selectedBeams: [] }),
+
+  toggleFixture: (num) => {
+    const { selectedFixtures } = get()
+    set({
+      selectedFixtures: selectedFixtures.includes(num)
+        ? selectedFixtures.filter((n) => n !== num)
+        : [...selectedFixtures, num],
+    })
+  },
+
+  toggleBeam: (key) => {
+    const { selectedBeams } = get()
+    set({
+      selectedBeams: selectedBeams.includes(key)
+        ? selectedBeams.filter((k) => k !== key)
+        : [...selectedBeams, key],
+    })
+  },
+
+  setGroupNameInput: (v) => set({ groupNameInput: v }),
+
+  saveGroup: () => {
+    const { editingGroupId, groupNameInput, groupMode, selectedFixtures, selectedBeams, groups } = get()
+    const validation = validateGroupName(groupNameInput)
+    if (!validation.valid) { get().addToast(validation.reason, 'warning'); return }
+
+    const selected = groupMode === 'fixture' ? selectedFixtures : selectedBeams
+    if (selected.length === 0) { get().addToast('Select at least one laser or beam', 'warning'); return }
+
+    if (editingGroupId) {
+      set({
+        groups: groups.map((g) => g.id === editingGroupId ? {
+          ...g, name: groupNameInput.trim(), mode: groupMode,
+          selectedFixtures: [...selectedFixtures], selectedBeams: [...selectedBeams],
+        } : g),
+        groupModalOpen: false, editingGroupId: null,
+      })
+      get().addToast('Group updated', 'success')
+    } else {
+      const newGroup: LaserGroup = {
+        id: `group-${Date.now()}`,
+        name: groupNameInput.trim(),
+        mode: groupMode,
+        selectedFixtures: [...selectedFixtures],
+        selectedBeams: [...selectedBeams],
+        createdAt: Date.now(),
+      }
+      set({ groups: [...groups, newGroup], groupModalOpen: false })
+      get().addToast(`Group "${newGroup.name}" created`, 'success')
+    }
+  },
+
+  deleteGroup: (id) => {
+    const { groups } = get()
+    const group = groups.find((g) => g.id === id)
+    set({ groups: groups.filter((g) => g.id !== id), deleteConfirmId: null })
+    get().addToast(`Group "${group?.name}" deleted`, 'success')
+  },
+
+  confirmDeleteGroup: (id) => set({ deleteConfirmId: id }),
+  cancelDeleteGroup: () => set({ deleteConfirmId: null }),
 }))

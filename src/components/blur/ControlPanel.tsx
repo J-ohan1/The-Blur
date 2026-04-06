@@ -2,11 +2,13 @@
 
 import { useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { useBlurStore } from '@/store/blur-store'
+import { useBlurStore, type LaserGroup } from '@/store/blur-store'
 import { EFFECTS_CATEGORIES } from './effects-categories'
+import { Zap } from 'lucide-react'
 
 export function ControlPanel() {
   const {
+    groups,
     masterOnOff,
     fadeOnOff,
     holdOnOff,
@@ -35,9 +37,7 @@ export function ControlPanel() {
     >
       {/* ── Top Row ── */}
       <div className="flex gap-3 h-[180px] flex-shrink-0">
-        <PanelFrame title="Custom Group">
-          <EmptyState />
-        </PanelFrame>
+        <CustomGroupPanel groups={groups} />
         <PanelFrame title="Custom Effects">
           <EmptyState />
         </PanelFrame>
@@ -141,6 +141,45 @@ function PanelHeader({ children }: { children: React.ReactNode }) {
 
 function EmptyState() {
   return <span className="text-[11px] text-neutral-700">Coming soon</span>
+}
+
+/* ─── Custom Group Panel (synced from Group panel) ─ */
+
+function CustomGroupPanel({ groups }: { groups: LaserGroup[] }) {
+  if (groups.length === 0) {
+    return (
+      <div className="flex-1 rounded-xl border border-neutral-800/70 bg-neutral-950/50 overflow-hidden flex flex-col">
+        <PanelHeader>Custom Group</PanelHeader>
+        <div className="flex-1 flex flex-col items-center justify-center gap-2">
+          <Zap className="w-5 h-5 text-neutral-800" />
+          <span className="text-[11px] text-neutral-700">No groups yet</span>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex-1 rounded-xl border border-neutral-800/70 bg-neutral-950/50 overflow-hidden flex flex-col">
+      <PanelHeader>Custom Group</PanelHeader>
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
+        {groups.map((group) => (
+          <div
+            key={group.id}
+            className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-neutral-800/20 transition-colors cursor-pointer group"
+          >
+            <span className="text-[11px] font-medium text-neutral-300 group-hover:text-white truncate">
+              {group.name}
+            </span>
+            <span className="text-[9px] px-1.5 py-0.5 rounded bg-neutral-800/60 text-neutral-500 flex-shrink-0">
+              {group.mode === 'fixture'
+                ? `${group.selectedFixtures.length}F`
+                : `${group.selectedBeams.length}B`}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {

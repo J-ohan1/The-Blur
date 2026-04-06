@@ -8,6 +8,7 @@ import { NavBar } from '@/components/blur/NavBar'
 import { HomePanel } from '@/components/blur/HomePanel'
 import { ControlPanel } from '@/components/blur/ControlPanel'
 import { PlayerPanel } from '@/components/blur/PlayerPanel'
+import { GroupPanel } from '@/components/blur/GroupPanel'
 import { ToastContainer } from '@/components/blur/ToastContainer'
 
 export default function Page() {
@@ -27,6 +28,7 @@ export default function Page() {
               {activePanel === 'home' && <HomePanel key="home" />}
               {activePanel === 'control' && <ControlPanel key="control" />}
               {activePanel === 'player' && <PlayerPanel key="player" />}
+              {activePanel === 'group' && <GroupPanel key="group" />}
             </AnimatePresence>
           </div>
         )}
