@@ -5,7 +5,7 @@ import { useBlurStore } from '@/store/blur-store'
 import { LandingPage } from '@/components/blur/LandingPage'
 import { WelcomeScreen } from '@/components/blur/WelcomeScreen'
 import { NavBar } from '@/components/blur/NavBar'
-import { HomePanel } from '@/components/blur/HomePanel'
+import { ControlPanel } from '@/components/blur/ControlPanel'
 
 export default function Page() {
   const phase = useBlurStore((s) => s.phase)
@@ -23,7 +23,7 @@ export default function Page() {
         {phase === 'main' && (
           <div key="main" className="h-full w-full">
             <NavBar />
-            <HomePanel />
+            <ControlPanel />
           </div>
         )}
       </AnimatePresence>
