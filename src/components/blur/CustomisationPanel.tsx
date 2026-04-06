@@ -38,19 +38,22 @@ const FADER_DEFS = [
 ]
 
 export function CustomisationPanel() {
-  const {
-    groups,
-    selectedGroupId,
-    customisation,
-    setCustomColor,
-    setCustomFader,
-    applyOddEven,
-    applyLeftRight,
-    applyQuickColor,
-    applyColorPattern,
-  } = useBlurStore()
+  const groups = useBlurStore((s) => s.groups)
+  const selectedGroupIds = useBlurStore((s) => s.selectedGroupIds)
+  const customisation = useBlurStore((s) => s.customisation)
+  const setCustomColor = useBlurStore((s) => s.setCustomColor)
+  const setCustomFader = useBlurStore((s) => s.setCustomFader)
+  const applyOddEven = useBlurStore((s) => s.applyOddEven)
+  const applyLeftRight = useBlurStore((s) => s.applyLeftRight)
+  const applyQuickColor = useBlurStore((s) => s.applyQuickColor)
+  const applyColorPattern = useBlurStore((s) => s.applyColorPattern)
 
-  const selectedGroup = groups.find((g) => g.id === selectedGroupId)
+  const selectedGroupNames = selectedGroupIds.length > 0
+    ? selectedGroupIds
+        .map((id) => groups.find((g) => g.id === id)?.name)
+        .filter(Boolean)
+        .join(', ')
+    : null
 
   return (
     <motion.div
@@ -65,9 +68,9 @@ export function CustomisationPanel() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-sm font-semibold text-white">Customisation</h2>
-          {selectedGroup ? (
+          {selectedGroupNames ? (
             <p className="text-[11px] text-neutral-600 mt-0.5">
-              {selectedGroup.name}
+              {selectedGroupNames}
             </p>
           ) : (
             <p className="text-[11px] text-neutral-700 mt-0.5">

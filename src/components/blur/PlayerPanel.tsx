@@ -21,17 +21,15 @@ const ROLE_FILTERS: { label: string; value: PlayerRole | 'all' }[] = [
 ]
 
 export function PlayerPanel() {
-  const {
-    currentUser,
-    players,
-    playerSearch,
-    playerFilter,
-    whitelistPlayer,
-    removePlayer,
-    kickPlayer,
-    setPlayerSearch,
-    setPlayerFilter,
-  } = useBlurStore()
+  const currentUser = useBlurStore((s) => s.currentUser)
+  const players = useBlurStore((s) => s.players)
+  const playerSearch = useBlurStore((s) => s.playerSearch)
+  const playerFilter = useBlurStore((s) => s.playerFilter)
+  const whitelistPlayer = useBlurStore((s) => s.whitelistPlayer)
+  const removePlayer = useBlurStore((s) => s.removePlayer)
+  const kickPlayer = useBlurStore((s) => s.kickPlayer)
+  const setPlayerSearch = useBlurStore((s) => s.setPlayerSearch)
+  const setPlayerFilter = useBlurStore((s) => s.setPlayerFilter)
 
   const filteredPlayers = useMemo(() => {
     let list = players.filter((p) => p.id !== currentUser.id)

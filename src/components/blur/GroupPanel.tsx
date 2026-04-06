@@ -12,11 +12,11 @@ const FIXTURE_COUNT = 24
 
 export function GroupPanel() {
   const groups = useBlurStore((s) => s.groups)
-  const selectedGroupId = useBlurStore((s) => s.selectedGroupId)
+  const selectedGroupIds = useBlurStore((s) => s.selectedGroupIds)
   const groupModalOpen = useBlurStore((s) => s.groupModalOpen)
   const deleteConfirmId = useBlurStore((s) => s.deleteConfirmId)
   const openGroupModal = useBlurStore((s) => s.openGroupModal)
-  const setSelectedGroupId = useBlurStore((s) => s.setSelectedGroupId)
+  const toggleGroupSelection = useBlurStore((s) => s.toggleGroupSelection)
   const confirmDeleteGroup = useBlurStore((s) => s.confirmDeleteGroup)
   const cancelDeleteGroup = useBlurStore((s) => s.cancelDeleteGroup)
   const deleteGroup = useBlurStore((s) => s.deleteGroup)
@@ -62,6 +62,11 @@ export function GroupPanel() {
           <h2 className="text-sm font-semibold text-white">Groups</h2>
           <p className="text-[11px] text-neutral-600 mt-0.5">
             {groups.length} group{groups.length !== 1 ? 's' : ''} created
+            {selectedGroupIds.length > 0 && (
+              <span className="text-neutral-500 ml-1">
+                ({selectedGroupIds.length} selected)
+              </span>
+            )}
           </p>
         </div>
         <motion.button
@@ -82,10 +87,10 @@ export function GroupPanel() {
           <GroupList
             key="list"
             groups={groups}
-            selectedGroupId={selectedGroupId}
+            selectedGroupIds={selectedGroupIds}
             deleteConfirmId={deleteConfirmId}
             onContextMenu={handleContextMenu}
-            onSelect={setSelectedGroupId}
+            onSelect={toggleGroupSelection}
             onDelete={deleteGroup}
             onCancelDelete={cancelDeleteGroup}
           />
@@ -112,7 +117,7 @@ export function GroupPanel() {
 
 function GroupList({
   groups,
-  selectedGroupId,
+  selectedGroupIds,
   deleteConfirmId,
   onContextMenu,
   onSelect,
@@ -120,7 +125,7 @@ function GroupList({
   onCancelDelete,
 }: {
   groups: LaserGroup[]
-  selectedGroupId: string | null
+  selectedGroupIds: string[]
   deleteConfirmId: string | null
   onContextMenu: (e: React.MouseEvent, id: string) => void
   onSelect: (id: string) => void
@@ -151,7 +156,7 @@ function GroupList({
     <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1">
       {groups.map((group, index) => {
         const isDeleting = deleteConfirmId === group.id
-        const isSelected = selectedGroupId === group.id
+        const isSelected = selectedGroupIds.includes(group.id)
         const count = group.mode === 'fixture'
           ? group.selectedFixtures.length
           : group.selectedBeams.length
@@ -173,10 +178,18 @@ function GroupList({
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                {/* Selection indicator */}
-                <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 transition-colors ${
-                  isSelected ? 'bg-white' : 'bg-neutral-700'
-                }`} />
+                {/* Selection checkbox */}
+                <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border transition-colors ${
+                  isSelected
+                    ? 'bg-white border-white'
+                    : 'border-neutral-700'
+                }`}>
+                  {isSelected && (
+                    <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                      <path d="M1 4L3.5 6.5L9 1" stroke="black" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}
+                </div>
                 <div>
                   <p className={`text-[13px] font-semibold ${isSelected ? 'text-white' : 'text-neutral-300'}`}>
                     {group.name}
@@ -449,7 +462,8 @@ function IndividualSelector({
 
         return (
           <div key={fixtureNum} className="rounded-lg border border-neutral-800/50 overflow-hidden">
-            <button
+            {/* Fixture header row -- use div instead of button to avoid nesting */}
+            <div
               className={`flex items-center gap-2 w-full px-3 py-2 text-left transition-colors cursor-pointer ${
                 isExpanded ? 'bg-neutral-800/30' : 'hover:bg-neutral-900/30'
               }`}
@@ -460,7 +474,8 @@ function IndividualSelector({
                 {selectedCount > 0 ? `${selectedCount}/${BEAMS_PER_FIXTURE} beams` : `${BEAMS_PER_FIXTURE} beams`}
               </span>
 
-              <button
+              {/* Select All / Deselect -- separate click, not nested button */}
+              <span
                 className="ml-auto text-[10px] font-medium px-2 py-0.5 rounded-md transition-colors cursor-pointer text-neutral-500 hover:text-neutral-300"
                 onClick={(e) => {
                   e.stopPropagation()
@@ -472,8 +487,8 @@ function IndividualSelector({
                 }}
               >
                 {allSelected ? 'Deselect' : 'Select All'}
-              </button>
-            </button>
+              </span>
+            </div>
 
             <AnimatePresence>
               {isExpanded && (

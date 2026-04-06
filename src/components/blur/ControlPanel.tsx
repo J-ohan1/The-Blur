@@ -6,31 +6,34 @@ import { useBlurStore, type LaserGroup } from '@/store/blur-store'
 import { EFFECTS_CATEGORIES } from './effects-categories'
 
 export function ControlPanel() {
-  const {
-    groups,
-    selectedGroupId,
-    masterOnOff,
-    fadeOnOff,
-    holdOnOff,
-    holdFadeOnOff,
-    selectedEffect,
-    tiltDirection,
-    panDirection,
-    setMasterOnOff,
-    setFadeOnOff,
-    setHoldOnOff,
-    setHoldFadeOnOff,
-    setSelectedEffect,
-    setTiltDirection,
-    setPanDirection,
-  } = useBlurStore()
+  const groups = useBlurStore((s) => s.groups)
+  const selectedGroupIds = useBlurStore((s) => s.selectedGroupIds)
+  const masterOnOff = useBlurStore((s) => s.masterOnOff)
+  const fadeOnOff = useBlurStore((s) => s.fadeOnOff)
+  const holdOnOff = useBlurStore((s) => s.holdOnOff)
+  const holdFadeOnOff = useBlurStore((s) => s.holdFadeOnOff)
+  const selectedEffect = useBlurStore((s) => s.selectedEffect)
+  const tiltDirection = useBlurStore((s) => s.tiltDirection)
+  const panDirection = useBlurStore((s) => s.panDirection)
+  const setMasterOnOff = useBlurStore((s) => s.setMasterOnOff)
+  const setFadeOnOff = useBlurStore((s) => s.setFadeOnOff)
+  const setHoldOnOff = useBlurStore((s) => s.setHoldOnOff)
+  const setHoldFadeOnOff = useBlurStore((s) => s.setHoldFadeOnOff)
+  const setSelectedEffect = useBlurStore((s) => s.setSelectedEffect)
+  const setTiltDirection = useBlurStore((s) => s.setTiltDirection)
+  const setPanDirection = useBlurStore((s) => s.setPanDirection)
 
   const handleHoldOnDown = useCallback(() => setHoldOnOff(true), [setHoldOnOff])
   const handleHoldOnUp = useCallback(() => setHoldOnOff(false), [setHoldOnOff])
   const handleHoldFadeDown = useCallback(() => setHoldFadeOnOff(true), [setHoldFadeOnOff])
   const handleHoldFadeUp = useCallback(() => setHoldFadeOnOff(false), [setHoldFadeOnOff])
 
-  const selectedGroup = groups.find((g) => g.id === selectedGroupId)
+  const selectedGroupNames = selectedGroupIds.length > 0
+    ? selectedGroupIds
+        .map((id) => groups.find((g) => g.id === id)?.name)
+        .filter(Boolean)
+        .join(', ')
+    : null
 
   return (
     <motion.div
@@ -43,7 +46,7 @@ export function ControlPanel() {
     >
       {/* Top Row */}
       <div className="flex gap-3 h-[180px] flex-shrink-0">
-        <CustomGroupPanel groups={groups} selectedGroupId={selectedGroupId} />
+        <CustomGroupPanel groups={groups} selectedGroupIds={selectedGroupIds} />
         <PanelFrame title="Custom Effects">
           <span className="text-[11px] text-neutral-700">Coming soon</span>
         </PanelFrame>
@@ -53,9 +56,9 @@ export function ControlPanel() {
       <div className="flex-1 rounded-xl border border-neutral-800/70 bg-neutral-950/50 overflow-hidden flex flex-col">
         <PanelHeader>
           Effects
-          {selectedGroup && (
+          {selectedGroupNames && (
             <span className="ml-2 text-[10px] font-normal text-neutral-600">
-              -- {selectedGroup.name}
+              -- {selectedGroupNames}
             </span>
           )}
         </PanelHeader>
@@ -271,12 +274,12 @@ function DirectionControl({
 
 function CustomGroupPanel({
   groups,
-  selectedGroupId,
+  selectedGroupIds,
 }: {
   groups: LaserGroup[]
-  selectedGroupId: string | null
+  selectedGroupIds: string[]
 }) {
-  const setSelectedGroupId = useBlurStore((s) => s.setSelectedGroupId)
+  const toggleGroupSelection = useBlurStore((s) => s.toggleGroupSelection)
 
   if (groups.length === 0) {
     return (
@@ -299,31 +302,42 @@ function CustomGroupPanel({
     <div className="flex-1 rounded-xl border border-neutral-800/70 bg-neutral-950/50 overflow-hidden flex flex-col">
       <PanelHeader>Custom Group</PanelHeader>
       <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
-        {groups.map((group) => (
-          <div
-            key={group.id}
-            className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer ${
-              selectedGroupId === group.id
-                ? 'bg-neutral-800/40 border border-neutral-700'
-                : 'border border-transparent hover:bg-neutral-800/20'
-            }`}
-            onClick={() => setSelectedGroupId(group.id)}
-          >
-            <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-              selectedGroupId === group.id ? 'bg-white' : 'bg-neutral-700'
-            }`} />
-            <span className={`text-[11px] font-medium truncate ${
-              selectedGroupId === group.id ? 'text-white' : 'text-neutral-400'
-            }`}>
-              {group.name}
-            </span>
-            <span className="text-[9px] px-1.5 py-0.5 rounded bg-neutral-800/60 text-neutral-500 flex-shrink-0 ml-auto">
-              {group.mode === 'fixture'
-                ? `${group.selectedFixtures.length}F`
-                : `${group.selectedBeams.length}B`}
-            </span>
-          </div>
-        ))}
+        {groups.map((group) => {
+          const isSelected = selectedGroupIds.includes(group.id)
+          return (
+            <div
+              key={group.id}
+              className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                isSelected
+                  ? 'bg-neutral-800/40 border border-neutral-700'
+                  : 'border border-transparent hover:bg-neutral-800/20'
+              }`}
+              onClick={() => toggleGroupSelection(group.id)}
+            >
+              <div className={`w-3.5 h-3.5 rounded flex items-center justify-center flex-shrink-0 border transition-colors ${
+                isSelected
+                  ? 'bg-white border-white'
+                  : 'border-neutral-700'
+              }`}>
+                {isSelected && (
+                  <svg width="8" height="6" viewBox="0 0 10 8" fill="none">
+                    <path d="M1 4L3.5 6.5L9 1" stroke="black" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                )}
+              </div>
+              <span className={`text-[11px] font-medium truncate ${
+                isSelected ? 'text-white' : 'text-neutral-400'
+              }`}>
+                {group.name}
+              </span>
+              <span className="text-[9px] px-1.5 py-0.5 rounded bg-neutral-800/60 text-neutral-500 flex-shrink-0 ml-auto">
+                {group.mode === 'fixture'
+                  ? `${group.selectedFixtures.length}F`
+                  : `${group.selectedBeams.length}B`}
+              </span>
+            </div>
+          )
+        })}
       </div>
     </div>
   )

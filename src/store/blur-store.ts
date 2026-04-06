@@ -40,7 +40,7 @@ export interface FaderValue {
 interface BlurState {
   // App phase
   phase: 'landing' | 'welcome' | 'main'
-  activePanel: 'home' | 'control' | 'player' | 'group' | 'customisation'
+  activePanel: 'home' | 'control' | 'player' | 'group' | 'customisation' | 'info'
 
   // Current user
   currentUser: PlayerData
@@ -53,7 +53,7 @@ interface BlurState {
 
   // Group panel
   groups: LaserGroup[]
-  selectedGroupId: string | null
+  selectedGroupIds: string[]
   groupModalOpen: boolean
   editingGroupId: string | null
   groupMode: 'fixture' | 'individual'
@@ -94,7 +94,7 @@ interface BlurState {
 
   // Actions
   enterPanel: () => void
-  setActivePanel: (panel: 'home' | 'control' | 'player' | 'group' | 'customisation') => void
+  setActivePanel: (panel: 'home' | 'control' | 'player' | 'group' | 'customisation' | 'info') => void
   toggleProfileDropdown: () => void
   closeProfileDropdown: () => void
   checkEasterEgg: () => void
@@ -121,7 +121,7 @@ interface BlurState {
   kickPlayer: (targetId: string) => void
 
   // Group panel
-  setSelectedGroupId: (id: string | null) => void
+  toggleGroupSelection: (id: string) => void
   openGroupModal: (editId?: string) => void
   closeGroupModal: () => void
   setGroupMode: (mode: 'fixture' | 'individual') => void
@@ -147,11 +147,11 @@ interface BlurState {
 
 export function roleDotColor(role: PlayerRole): string {
   switch (role) {
-    case 'staff': return 'bg-white shadow-[0_0_4px_rgba(255,255,255,0.4)]'
-    case 'hardcoded_whitelist': return 'bg-neutral-300 shadow-[0_0_4px_rgba(163,163,163,0.4)]'
-    case 'temp_whitelist': return 'bg-neutral-500 shadow-[0_0_4px_rgba(115,115,115,0.4)]'
-    case 'normal': return 'bg-neutral-600'
-    case 'blacklisted': return 'bg-neutral-800 shadow-[0_0_4px_rgba(38,38,38,0.6)]'
+    case 'staff': return 'bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.6)]'
+    case 'hardcoded_whitelist': return 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]'
+    case 'temp_whitelist': return 'bg-yellow-400 shadow-[0_0_6px_rgba(250,204,21,0.6)]'
+    case 'normal': return 'bg-neutral-400'
+    case 'blacklisted': return 'bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.6)]'
   }
 }
 
@@ -337,7 +337,7 @@ export const useBlurStore = create<BlurState>((set, get) => ({
 
   // Group
   groups: [],
-  selectedGroupId: null,
+  selectedGroupIds: [],
   groupModalOpen: false,
   editingGroupId: null,
   groupMode: 'fixture',
@@ -434,47 +434,47 @@ export const useBlurStore = create<BlurState>((set, get) => ({
 
   // Control
   setMasterOnOff: (v) => {
-    const { groups, selectedGroupId } = get()
+    const { groups, selectedGroupIds } = get()
     if (groups.length === 0) { get().addToast('No groups. Please create a group first.', 'warning'); return }
-    if (!selectedGroupId) { get().addToast('No group selected to perform the operation.', 'warning'); return }
+    if (selectedGroupIds.length === 0) { get().addToast('No group selected to perform the operation.', 'warning'); return }
     set({ masterOnOff: v })
   },
   setHoldOnOff: (v) => {
-    const { groups, selectedGroupId } = get()
+    const { groups, selectedGroupIds } = get()
     if (groups.length === 0) { get().addToast('No groups. Please create a group first.', 'warning'); return }
-    if (!selectedGroupId) { get().addToast('No group selected to perform the operation.', 'warning'); return }
+    if (selectedGroupIds.length === 0) { get().addToast('No group selected to perform the operation.', 'warning'); return }
     set({ holdOnOff: v })
   },
   setFadeOnOff: (v) => {
-    const { groups, selectedGroupId } = get()
+    const { groups, selectedGroupIds } = get()
     if (groups.length === 0) { get().addToast('No groups. Please create a group first.', 'warning'); return }
-    if (!selectedGroupId) { get().addToast('No group selected to perform the operation.', 'warning'); return }
+    if (selectedGroupIds.length === 0) { get().addToast('No group selected to perform the operation.', 'warning'); return }
     set({ fadeOnOff: v })
   },
   setHoldFadeOnOff: (v) => {
-    const { groups, selectedGroupId } = get()
+    const { groups, selectedGroupIds } = get()
     if (groups.length === 0) { get().addToast('No groups. Please create a group first.', 'warning'); return }
-    if (!selectedGroupId) { get().addToast('No group selected to perform the operation.', 'warning'); return }
+    if (selectedGroupIds.length === 0) { get().addToast('No group selected to perform the operation.', 'warning'); return }
     set({ holdFadeOnOff: v })
   },
   setSelectedEffect: (id) => {
     if (id !== null) {
-      const { groups, selectedGroupId } = get()
+      const { groups, selectedGroupIds } = get()
       if (groups.length === 0) { get().addToast('No groups. Please create a group first.', 'warning'); return }
-      if (!selectedGroupId) { get().addToast('No group selected to perform the operation.', 'warning'); return }
+      if (selectedGroupIds.length === 0) { get().addToast('No group selected to perform the operation.', 'warning'); return }
     }
     set({ selectedEffect: id })
   },
   setTiltDirection: (dir) => {
-    const { groups, selectedGroupId } = get()
+    const { groups, selectedGroupIds } = get()
     if (groups.length === 0) { get().addToast('No groups. Please create a group first.', 'warning'); return }
-    if (!selectedGroupId) { get().addToast('No group selected to perform the operation.', 'warning'); return }
+    if (selectedGroupIds.length === 0) { get().addToast('No group selected to perform the operation.', 'warning'); return }
     set({ tiltDirection: dir })
   },
   setPanDirection: (dir) => {
-    const { groups, selectedGroupId } = get()
+    const { groups, selectedGroupIds } = get()
     if (groups.length === 0) { get().addToast('No groups. Please create a group first.', 'warning'); return }
-    if (!selectedGroupId) { get().addToast('No group selected to perform the operation.', 'warning'); return }
+    if (selectedGroupIds.length === 0) { get().addToast('No group selected to perform the operation.', 'warning'); return }
     set({ panDirection: dir })
   },
 
@@ -513,7 +513,14 @@ export const useBlurStore = create<BlurState>((set, get) => ({
   },
 
   // Group panel
-  setSelectedGroupId: (id) => set({ selectedGroupId: id }),
+  toggleGroupSelection: (id) => {
+    const { selectedGroupIds } = get()
+    if (selectedGroupIds.includes(id)) {
+      set({ selectedGroupIds: selectedGroupIds.filter((gid) => gid !== id) })
+    } else {
+      set({ selectedGroupIds: [...selectedGroupIds, id] })
+    }
+  },
 
   openGroupModal: (editId?: string) => {
     if (editId) {
@@ -596,9 +603,9 @@ export const useBlurStore = create<BlurState>((set, get) => ({
   },
 
   deleteGroup: (id) => {
-    const { groups, selectedGroupId } = get()
+    const { groups, selectedGroupIds } = get()
     const group = groups.find((g) => g.id === id)
-    set({ groups: groups.filter((g) => g.id !== id), deleteConfirmId: null, selectedGroupId: selectedGroupId === id ? null : selectedGroupId })
+    set({ groups: groups.filter((g) => g.id !== id), deleteConfirmId: null, selectedGroupIds: selectedGroupIds.filter((gid) => gid !== id) })
     get().addToast(`Group "${group?.name}" deleted`, 'success')
   },
 
@@ -606,9 +613,9 @@ export const useBlurStore = create<BlurState>((set, get) => ({
   cancelDeleteGroup: () => set({ deleteConfirmId: null }),
 
   getSelectedGroup: () => {
-    const { groups, selectedGroupId } = get()
-    if (!selectedGroupId) return null
-    return groups.find((g) => g.id === selectedGroupId) ?? null
+    const { groups, selectedGroupIds } = get()
+    if (selectedGroupIds.length === 0) return null
+    return groups.find((g) => g.id === selectedGroupIds[0]) ?? null
   },
 
   // Customisation
@@ -633,30 +640,30 @@ export const useBlurStore = create<BlurState>((set, get) => ({
   },
 
   applyOddEven: (mode) => {
-    const { groups, selectedGroupId, addToast } = get()
+    const { groups, selectedGroupIds, addToast } = get()
     if (groups.length === 0) { addToast('No groups. Please create a group first.', 'warning'); return }
-    if (!selectedGroupId) { addToast('No group selected to perform the operation.', 'warning'); return }
+    if (selectedGroupIds.length === 0) { addToast('No group selected to perform the operation.', 'warning'); return }
     addToast(`${mode === 'odd' ? 'Odd' : 'Even'} selection applied`, 'success')
   },
 
   applyLeftRight: (mode) => {
-    const { groups, selectedGroupId, addToast } = get()
+    const { groups, selectedGroupIds, addToast } = get()
     if (groups.length === 0) { addToast('No groups. Please create a group first.', 'warning'); return }
-    if (!selectedGroupId) { addToast('No group selected to perform the operation.', 'warning'); return }
+    if (selectedGroupIds.length === 0) { addToast('No group selected to perform the operation.', 'warning'); return }
     addToast(`${mode === 'left' ? 'Left' : 'Right'} selection applied`, 'success')
   },
 
   applyQuickColor: (color) => {
-    const { groups, selectedGroupId, addToast } = get()
+    const { groups, selectedGroupIds, addToast } = get()
     if (groups.length === 0) { addToast('No groups. Please create a group first.', 'warning'); return }
-    if (!selectedGroupId) { addToast('No group selected to perform the operation.', 'warning'); return }
+    if (selectedGroupIds.length === 0) { addToast('No group selected to perform the operation.', 'warning'); return }
     addToast(`Color applied`, 'success')
   },
 
   applyColorPattern: (pattern) => {
-    const { groups, selectedGroupId, addToast } = get()
+    const { groups, selectedGroupIds, addToast } = get()
     if (groups.length === 0) { addToast('No groups. Please create a group first.', 'warning'); return }
-    if (!selectedGroupId) { addToast('No group selected to perform the operation.', 'warning'); return }
+    if (selectedGroupIds.length === 0) { addToast('No group selected to perform the operation.', 'warning'); return }
     addToast(`Color pattern applied`, 'success')
   },
 }))
