@@ -3,21 +3,20 @@
 import { useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useBlurStore } from '@/store/blur-store'
-import { User } from 'lucide-react'
 import { ProfileDropdown } from './ProfileDropdown'
 import { EasterEggPopup } from './EasterEggPopup'
 
 export function NavBar() {
-  const {
-    activePanel,
-    showProfileDropdown,
-    showEasterEgg,
-    setActivePanel,
-    toggleProfileDropdown,
-    checkEasterEgg,
-    closeEasterEgg,
-    closeProfileDropdown,
-  } = useBlurStore()
+  const currentUser = useBlurStore((s) => s.currentUser)
+  const activePanel = useBlurStore((s) => s.activePanel)
+  const showProfileDropdown = useBlurStore((s) => s.showProfileDropdown)
+  const showEasterEgg = useBlurStore((s) => s.showEasterEgg)
+  const groups = useBlurStore((s) => s.groups)
+  const setActivePanel = useBlurStore((s) => s.setActivePanel)
+  const toggleProfileDropdown = useBlurStore((s) => s.toggleProfileDropdown)
+  const checkEasterEgg = useBlurStore((s) => s.checkEasterEgg)
+  const closeEasterEgg = useBlurStore((s) => s.closeEasterEgg)
+  const closeProfileDropdown = useBlurStore((s) => s.closeProfileDropdown)
 
   const navRef = useRef<HTMLDivElement>(null)
 
@@ -31,11 +30,12 @@ export function NavBar() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [closeProfileDropdown])
 
-  const navButtons: { label: string; key: 'home' | 'control' | 'player' | 'group' }[] = [
+  const navButtons: { label: string; key: 'home' | 'control' | 'player' | 'group' | 'customisation' }[] = [
     { label: 'Home', key: 'home' },
     { label: 'Control', key: 'control' },
     { label: 'Player', key: 'player' },
     { label: 'Group', key: 'group' },
+    { label: 'Customisation', key: 'customisation' },
   ]
 
   return (
@@ -65,6 +65,7 @@ export function NavBar() {
         <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1">
           {navButtons.map((item) => {
             const isActive = activePanel === item.key
+            const needsBlink = item.key === 'group' && groups.length === 0
             return (
               <button
                 key={item.key}
@@ -79,6 +80,14 @@ export function NavBar() {
                     transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                   />
                 )}
+                {/* Blink dot when no groups exist */}
+                {needsBlink && !isActive && (
+                  <motion.span
+                    className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-white"
+                    animate={{ opacity: [1, 0, 1] }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                  />
+                )}
               </button>
             )
           })}
@@ -87,12 +96,14 @@ export function NavBar() {
         {/* Right: Headshot */}
         <div className="relative">
           <motion.button
-            className="w-7 h-7 rounded-full bg-gradient-to-br from-red-500/30 to-neutral-800 border border-neutral-700 flex items-center justify-center hover:border-neutral-500 transition-colors duration-200 cursor-pointer"
+            className="w-7 h-7 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center hover:border-neutral-500 transition-colors duration-200 cursor-pointer"
             onClick={toggleProfileDropdown}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
-            <User className="w-3.5 h-3.5 text-neutral-400" />
+            <span className="text-[10px] font-bold text-neutral-400">
+              {currentUser.name.charAt(0).toUpperCase()}
+            </span>
           </motion.button>
 
           {showProfileDropdown && (

@@ -2,10 +2,9 @@
 
 import { motion } from 'framer-motion'
 import { useBlurStore } from '@/store/blur-store'
-import { User } from 'lucide-react'
 
 export function WelcomeScreen() {
-  const username = useBlurStore((s) => s.username)
+  const currentUser = useBlurStore((s) => s.currentUser)
 
   return (
     <motion.div
@@ -21,9 +20,11 @@ export function WelcomeScreen() {
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, delay: 0.2 }}
       >
-        {/* Headshot */}
-        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-500/30 to-neutral-800 border border-neutral-600 flex items-center justify-center flex-shrink-0">
-          <User className="w-6 h-6 text-neutral-400" />
+        {/* Headshot placeholder */}
+        <div className="w-12 h-12 rounded-full bg-neutral-800 border border-neutral-600 flex items-center justify-center flex-shrink-0">
+          <span className="text-sm font-bold text-neutral-400">
+            {currentUser.name.charAt(0).toUpperCase()}
+          </span>
         </div>
 
         {/* Welcome Text */}
@@ -34,7 +35,7 @@ export function WelcomeScreen() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.4, delay: 0.5 }}
         >
-          Welcome, {username}
+          Welcome, {currentUser.name}
         </motion.span>
       </motion.div>
     </motion.div>

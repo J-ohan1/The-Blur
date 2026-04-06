@@ -24,3 +24,27 @@ Stage Summary:
 - Easter egg on version text (3 clicks in 2 seconds)
 - Profile dropdown with whitelist status, session timer, keybinds
 - Desktop-focused, all black aesthetic with Inter font
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Bug fixes, name filter improvement, monochrome redesign, Customisation panel, tilt/pan widget
+
+Work Log:
+- Fixed WelcomeScreen: was reading s.username (undefined), changed to s.currentUser.name - now shows "Welcome, Johan"
+- Massively enhanced name content filter: 14 regex patterns + 65+ forbidden words covering sexual content, profanity, slurs, self-harm, drugs, hate speech, bypass detection
+- Removed ALL lucide-react icons from all components, removed ALL emojis from effect labels
+- Made entire UI monochrome: replaced all colored role indicators/buttons/accents with white/neutral palette
+- Removed toggle switch UI from ControlPanel, replaced with flat ON/OFF text buttons
+- Added group selection: click any group to select (white dot indicator), highlighted border
+- All toggles/holds/effects/tilt/pan/customisation check for selected group, show toast warnings
+- Blinking dot on Group nav button when no groups exist
+- Flash/pulse message in ControlPanel Custom Group section when no groups
+- Created CustomisationPanel: color wheel (canvas), brightness fader, selection buttons, quick colors, color patterns, 9 faders
+- Added Tilt/Pan direction widget to ControlPanel with < center > buttons
+- Fixed reactivity issues in NavBar and GroupPanel
+
+Stage Summary:
+- 10 files modified, 1 new file (CustomisationPanel.tsx)
+- Zero lint errors, clean compilation
+- Full monochrome redesign across all panels

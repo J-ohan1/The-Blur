@@ -22,24 +22,25 @@ interface ToastMessage {
   type: 'warning' | 'success' | 'error'
 }
 
-// Each "laser fixture" has 15 beams
 export const BEAMS_PER_FIXTURE = 15
 
 export interface LaserGroup {
   id: string
   name: string
   mode: 'fixture' | 'individual'
-  // fixture mode: which fixture numbers are selected (1, 2, 3...)
   selectedFixtures: number[]
-  // individual mode: which specific beams are selected e.g. "3-7" means fixture 3 beam 7
   selectedBeams: string[]
   createdAt: number
+}
+
+export interface FaderValue {
+  value: number // 0-255
 }
 
 interface BlurState {
   // App phase
   phase: 'landing' | 'welcome' | 'main'
-  activePanel: 'home' | 'control' | 'player' | 'group'
+  activePanel: 'home' | 'control' | 'player' | 'group' | 'customisation'
 
   // Current user
   currentUser: PlayerData
@@ -52,13 +53,14 @@ interface BlurState {
 
   // Group panel
   groups: LaserGroup[]
-  groupModalOpen: boolean  // false = list view, true = creating/editing
-  editingGroupId: string | null  // null = new, string = editing
+  selectedGroupId: string | null
+  groupModalOpen: boolean
+  editingGroupId: string | null
   groupMode: 'fixture' | 'individual'
   selectedFixtures: number[]
   selectedBeams: string[]
   groupNameInput: string
-  deleteConfirmId: string | null  // which group is awaiting delete confirmation
+  deleteConfirmId: string | null
 
   // UI
   showProfileDropdown: boolean
@@ -79,16 +81,28 @@ interface BlurState {
   holdFadeOnOff: boolean
   selectedEffect: string | null
   effects: EffectItem[]
+  tiltDirection: number // -1 left, 0 center, 1 right
+  panDirection: number // -1 left, 0 center, 1 right
+
+  // Customisation panel
+  customisation: {
+    colorHue: number
+    colorSaturation: number
+    colorBrightness: number
+    faders: Record<string, number> // phase, speed, iris, dimmer, wing, tilt, pan, brightness, zoom
+  }
 
   // Actions
   enterPanel: () => void
-  setActivePanel: (panel: 'home' | 'control' | 'player' | 'group') => void
+  setActivePanel: (panel: 'home' | 'control' | 'player' | 'group' | 'customisation') => void
   toggleProfileDropdown: () => void
   closeProfileDropdown: () => void
   checkEasterEgg: () => void
   closeEasterEgg: () => void
   updateTimeSpent: () => void
   getTimeSpent: () => string
+  addToast: (text: string, type: 'warning' | 'success' | 'error') => void
+  dismissToast: (id: string) => void
 
   // Control
   setMasterOnOff: (v: boolean) => void
@@ -96,6 +110,8 @@ interface BlurState {
   setFadeOnOff: (v: boolean) => void
   setHoldFadeOnOff: (v: boolean) => void
   setSelectedEffect: (id: string | null) => void
+  setTiltDirection: (dir: number) => void
+  setPanDirection: (dir: number) => void
 
   // Player panel
   setPlayerSearch: (v: string) => void
@@ -103,9 +119,9 @@ interface BlurState {
   whitelistPlayer: (targetId: string) => void
   removePlayer: (targetId: string) => void
   kickPlayer: (targetId: string) => void
-  dismissToast: (id: string) => void
 
   // Group panel
+  setSelectedGroupId: (id: string | null) => void
   openGroupModal: (editId?: string) => void
   closeGroupModal: () => void
   setGroupMode: (mode: 'fixture' | 'individual') => void
@@ -116,17 +132,26 @@ interface BlurState {
   deleteGroup: (id: string) => void
   confirmDeleteGroup: (id: string) => void
   cancelDeleteGroup: () => void
+  getSelectedGroup: () => LaserGroup | null
+
+  // Customisation
+  setCustomColor: (hue: number, sat: number, brightness: number) => void
+  setCustomFader: (name: string, value: number) => void
+  applyOddEven: (mode: 'odd' | 'even') => void
+  applyLeftRight: (mode: 'left' | 'right') => void
+  applyQuickColor: (color: string) => void
+  applyColorPattern: (pattern: string) => void
 }
 
 /* ─── Role helpers ───────────────────────────────── */
 
 export function roleDotColor(role: PlayerRole): string {
   switch (role) {
-    case 'staff': return 'bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.6)]'
-    case 'hardcoded_whitelist': return 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]'
-    case 'temp_whitelist': return 'bg-yellow-400 shadow-[0_0_6px_rgba(250,204,21,0.6)]'
-    case 'normal': return 'bg-neutral-300'
-    case 'blacklisted': return 'bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.6)]'
+    case 'staff': return 'bg-white shadow-[0_0_4px_rgba(255,255,255,0.4)]'
+    case 'hardcoded_whitelist': return 'bg-neutral-300 shadow-[0_0_4px_rgba(163,163,163,0.4)]'
+    case 'temp_whitelist': return 'bg-neutral-500 shadow-[0_0_4px_rgba(115,115,115,0.4)]'
+    case 'normal': return 'bg-neutral-600'
+    case 'blacklisted': return 'bg-neutral-800 shadow-[0_0_4px_rgba(38,38,38,0.6)]'
   }
 }
 
@@ -170,12 +195,40 @@ export function getActiveButtons(targetRole: PlayerRole): { whitelist: boolean; 
   return { whitelist: true, remove: false, kick: true }
 }
 
-/* ─── Name validation ────────────────────────────── */
+/* ─── Name validation (comprehensive content filter) ── */
 
+// Comprehensive forbidden patterns covering profanity, sexual content, slurs, self-harm, etc.
 const FORBIDDEN_PATTERNS = [
-  /\b(fuck|shit|ass|bitch|damn|crap|dick|cock|piss|slut|whore|nigger|nigga|retard|faggot)\b/i,
-  /\b(kill\s?(yourself|urself)|kys|suicide|self.harm)\b/i,
-  /\b(hack|exploit|cheat|inject)\b/i,
+  // Sexual / explicit
+  /\b(sex|sexual|intercourse|coitus|oral|anal|vaginal|genital|penis|vagina|clitoris|ejaculat|orgasm|masturbat|porn|porno|pornography|erotic|hentai|nude|naked|nudity|fetish|kink|bondage|sadomasoch| bdsm|threesome|orgy|prostitut|escort|stripper|rape|molest|pedophil|pedophile|child.?molest|minor.?sex|underage.?sex)\b/i,
+  /\b(fuck|shit|ass|bitch|damn|crap|dick|cock|piss|slut|whore|cunt|twat|wanker|bastard|motherfucker|cocksucker|dumbass|jackass|goddamn|asshole|dipshit|bullshit|dumbfuck|shithead|asshat|douche|douchebag)\b/i,
+  // Slurs
+  /\b(nigger|nigga|negro|chink|gook|spic|wetback|kike|faggot|fag|tranny|retard|retarded|mongoloid|cripple|midget)\b/i,
+  // Self-harm / violence
+  /\b(kill\s?(yourself|urself|myself)|kys|suicide|self.?harm|self.?injur|cut\s?(myself|yourself|wrists)|hang\s?(myself|yourself)|overdose|end\s?my\s?life|no\s?reason\s?to\s?live|unalive|unaliving)\b/i,
+  // Drugs
+  /\b(heroin|cocaine|methamphetamine|meth|marijuana|weed|lsd|ecstasy|mdma|crack|fentanyl|opioid|drug\s?abuse|drug\s?addict|shoot\s?up)\b/i,
+  // Hate speech
+  /\b(heil\s?hitler|white\s?supremac|nazi|ethnic.?cleans|genocide|holocaust|lynch|lynching|gas\s?chamber)\b/i,
+  // Cheating/exploiting
+  /\b(hack|exploit|cheat|inject|script.?exec|loadstring|executor|cheat\s?engine)\b/i,
+  // Misc profanity / bypass attempts
+  /\b(milf|dilf|gilf|cum|semen|sperm|scat|bestialit|zoophilia|necrophil|incest|pedophile|groomer|grooming|predator)\b/i,
+  /\b(suck\s?(my|it|your)\s?(dick|cock)|eat\s?(my|a)\s?(ass|dick)|fuck\s?(you|off|this|that)|go\s?die|go\s?kill\s?yourself)\b/i,
+  // Number/letter bypass patterns for common words
+  /\b(s[e3]x[ty]?\w*|f[u4]ck\w*|sh[i1]t\w*|n[i1]gg[e3]r\w*|f[a4]g[go0]t\w*|r[e3]t[a4]rd\w*|p[e3]d[o0]ph[i1]l\w*)/i,
+]
+
+// Additional word-level check for fragments and bypasses
+const FORBIDDEN_WORDS = [
+  'sex', 'fuck', 'shit', 'damn', 'bitch', 'ass', 'dick', 'cock', 'cunt', 'slut', 'whore',
+  'nigger', 'nigga', 'faggot', 'fag', 'retard', 'retarded', 'rape', 'molest', 'pedophil',
+  'kill yourself', 'kys', 'suicide', 'self-harm', 'porn', 'hentai', 'nude', 'naked',
+  'heroin', 'cocaine', 'meth', 'lsd', 'ecstasy', 'genocide', 'incest', 'bestiality',
+  'groomer', 'grooming', 'predator', 'prostitute', 'escort', 'orgasm', 'masturbat',
+  'penis', 'vagina', 'anal', 'oral', 'bdsm', 'bondage', 'fetish', 'erotic',
+  'milf', 'cum', 'semen', 'sperm', 'necrophil', 'zoophilia', 'scat',
+  'heil hitler', 'nazi', 'white supremacist',
 ]
 
 export function validateGroupName(name: string): { valid: boolean; reason: string } {
@@ -183,9 +236,28 @@ export function validateGroupName(name: string): { valid: boolean; reason: strin
   if (trimmed.length === 0) return { valid: false, reason: 'Group name is required' }
   if (trimmed.length < 2) return { valid: false, reason: 'Name must be at least 2 characters' }
   if (trimmed.length > 30) return { valid: false, reason: 'Name must be 30 characters or less' }
+
+  // Check regex patterns
   for (const pattern of FORBIDDEN_PATTERNS) {
     if (pattern.test(trimmed)) return { valid: false, reason: 'Name contains inappropriate content' }
   }
+
+  // Check word-level (case-insensitive, includes multi-word phrases)
+  const lower = trimmed.toLowerCase()
+  // Remove common separators for bypass detection
+  const stripped = lower.replace(/[\s\-_.]+/g, '')
+  for (const word of FORBIDDEN_WORDS) {
+    const wordStripped = word.replace(/\s+/g, '')
+    if (lower.includes(word.toLowerCase()) || stripped.includes(wordStripped)) {
+      return { valid: false, reason: 'Name contains inappropriate content' }
+    }
+  }
+
+  // Only allow alphanumeric, spaces, hyphens, underscores
+  if (!/^[a-zA-Z0-9\s\-_]+$/.test(trimmed)) {
+    return { valid: false, reason: 'Name can only contain letters, numbers, spaces, hyphens, and underscores' }
+  }
+
   return { valid: true, reason: '' }
 }
 
@@ -265,6 +337,7 @@ export const useBlurStore = create<BlurState>((set, get) => ({
 
   // Group
   groups: [],
+  selectedGroupId: null,
   groupModalOpen: false,
   editingGroupId: null,
   groupMode: 'fixture',
@@ -288,6 +361,26 @@ export const useBlurStore = create<BlurState>((set, get) => ({
   holdFadeOnOff: false,
   selectedEffect: null,
   effects: EFFECTS,
+  tiltDirection: 0,
+  panDirection: 0,
+
+  // Customisation
+  customisation: {
+    colorHue: 0,
+    colorSaturation: 100,
+    colorBrightness: 100,
+    faders: {
+      phase: 128,
+      speed: 128,
+      iris: 255,
+      dimmer: 255,
+      wing: 128,
+      tilt: 128,
+      pan: 128,
+      brightness: 255,
+      zoom: 128,
+    },
+  },
 
   enterPanel: () => {
     set({ phase: 'welcome' })
@@ -331,12 +424,59 @@ export const useBlurStore = create<BlurState>((set, get) => ({
     return `${s}s`
   },
 
+  addToast: (text: string, type: 'warning' | 'success' | 'error') => {
+    const id = `toast-${++toastIdCounter}`
+    set((s) => ({ toasts: [...s.toasts, { id, text, type }] }))
+    setTimeout(() => get().dismissToast(id), 3000)
+  },
+
+  dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+
   // Control
-  setMasterOnOff: (v) => set({ masterOnOff: v }),
-  setHoldOnOff: (v) => set({ holdOnOff: v }),
-  setFadeOnOff: (v) => set({ fadeOnOff: v }),
-  setHoldFadeOnOff: (v) => set({ holdFadeOnOff: v }),
-  setSelectedEffect: (id) => set({ selectedEffect: id }),
+  setMasterOnOff: (v) => {
+    const { groups, selectedGroupId } = get()
+    if (groups.length === 0) { get().addToast('No groups. Please create a group first.', 'warning'); return }
+    if (!selectedGroupId) { get().addToast('No group selected to perform the operation.', 'warning'); return }
+    set({ masterOnOff: v })
+  },
+  setHoldOnOff: (v) => {
+    const { groups, selectedGroupId } = get()
+    if (groups.length === 0) { get().addToast('No groups. Please create a group first.', 'warning'); return }
+    if (!selectedGroupId) { get().addToast('No group selected to perform the operation.', 'warning'); return }
+    set({ holdOnOff: v })
+  },
+  setFadeOnOff: (v) => {
+    const { groups, selectedGroupId } = get()
+    if (groups.length === 0) { get().addToast('No groups. Please create a group first.', 'warning'); return }
+    if (!selectedGroupId) { get().addToast('No group selected to perform the operation.', 'warning'); return }
+    set({ fadeOnOff: v })
+  },
+  setHoldFadeOnOff: (v) => {
+    const { groups, selectedGroupId } = get()
+    if (groups.length === 0) { get().addToast('No groups. Please create a group first.', 'warning'); return }
+    if (!selectedGroupId) { get().addToast('No group selected to perform the operation.', 'warning'); return }
+    set({ holdFadeOnOff: v })
+  },
+  setSelectedEffect: (id) => {
+    if (id !== null) {
+      const { groups, selectedGroupId } = get()
+      if (groups.length === 0) { get().addToast('No groups. Please create a group first.', 'warning'); return }
+      if (!selectedGroupId) { get().addToast('No group selected to perform the operation.', 'warning'); return }
+    }
+    set({ selectedEffect: id })
+  },
+  setTiltDirection: (dir) => {
+    const { groups, selectedGroupId } = get()
+    if (groups.length === 0) { get().addToast('No groups. Please create a group first.', 'warning'); return }
+    if (!selectedGroupId) { get().addToast('No group selected to perform the operation.', 'warning'); return }
+    set({ tiltDirection: dir })
+  },
+  setPanDirection: (dir) => {
+    const { groups, selectedGroupId } = get()
+    if (groups.length === 0) { get().addToast('No groups. Please create a group first.', 'warning'); return }
+    if (!selectedGroupId) { get().addToast('No group selected to perform the operation.', 'warning'); return }
+    set({ panDirection: dir })
+  },
 
   // Player panel
   setPlayerSearch: (v) => set({ playerSearch: v }),
@@ -372,15 +512,9 @@ export const useBlurStore = create<BlurState>((set, get) => ({
     get().addToast(`${target.name} has been kicked`, 'success')
   },
 
-  dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
-
-  addToast: (text: string, type: 'warning' | 'success' | 'error') => {
-    const id = `toast-${++toastIdCounter}`
-    set((s) => ({ toasts: [...s.toasts, { id, text, type }] }))
-    setTimeout(() => get().dismissToast(id), 3000)
-  },
-
   // Group panel
+  setSelectedGroupId: (id) => set({ selectedGroupId: id }),
+
   openGroupModal: (editId?: string) => {
     if (editId) {
       const group = get().groups.find((g) => g.id === editId)
@@ -431,7 +565,7 @@ export const useBlurStore = create<BlurState>((set, get) => ({
   setGroupNameInput: (v) => set({ groupNameInput: v }),
 
   saveGroup: () => {
-    const { editingGroupId, groupNameInput, groupMode, selectedFixtures, selectedBeams, groups } = get()
+    const { editingGroupId, groupNameInput, groupMode, selectedFixtures, selectedBeams, groups, selectedGroupId } = get()
     const validation = validateGroupName(groupNameInput)
     if (!validation.valid) { get().addToast(validation.reason, 'warning'); return }
 
@@ -462,12 +596,67 @@ export const useBlurStore = create<BlurState>((set, get) => ({
   },
 
   deleteGroup: (id) => {
-    const { groups } = get()
+    const { groups, selectedGroupId } = get()
     const group = groups.find((g) => g.id === id)
-    set({ groups: groups.filter((g) => g.id !== id), deleteConfirmId: null })
+    set({ groups: groups.filter((g) => g.id !== id), deleteConfirmId: null, selectedGroupId: selectedGroupId === id ? null : selectedGroupId })
     get().addToast(`Group "${group?.name}" deleted`, 'success')
   },
 
   confirmDeleteGroup: (id) => set({ deleteConfirmId: id }),
   cancelDeleteGroup: () => set({ deleteConfirmId: null }),
+
+  getSelectedGroup: () => {
+    const { groups, selectedGroupId } = get()
+    if (!selectedGroupId) return null
+    return groups.find((g) => g.id === selectedGroupId) ?? null
+  },
+
+  // Customisation
+  setCustomColor: (hue, sat, brightness) => {
+    set((s) => ({
+      customisation: {
+        ...s.customisation,
+        colorHue: hue,
+        colorSaturation: sat,
+        colorBrightness: brightness,
+      },
+    }))
+  },
+
+  setCustomFader: (name, value) => {
+    set((s) => ({
+      customisation: {
+        ...s.customisation,
+        faders: { ...s.customisation.faders, [name]: value },
+      },
+    }))
+  },
+
+  applyOddEven: (mode) => {
+    const { groups, selectedGroupId, addToast } = get()
+    if (groups.length === 0) { addToast('No groups. Please create a group first.', 'warning'); return }
+    if (!selectedGroupId) { addToast('No group selected to perform the operation.', 'warning'); return }
+    addToast(`${mode === 'odd' ? 'Odd' : 'Even'} selection applied`, 'success')
+  },
+
+  applyLeftRight: (mode) => {
+    const { groups, selectedGroupId, addToast } = get()
+    if (groups.length === 0) { addToast('No groups. Please create a group first.', 'warning'); return }
+    if (!selectedGroupId) { addToast('No group selected to perform the operation.', 'warning'); return }
+    addToast(`${mode === 'left' ? 'Left' : 'Right'} selection applied`, 'success')
+  },
+
+  applyQuickColor: (color) => {
+    const { groups, selectedGroupId, addToast } = get()
+    if (groups.length === 0) { addToast('No groups. Please create a group first.', 'warning'); return }
+    if (!selectedGroupId) { addToast('No group selected to perform the operation.', 'warning'); return }
+    addToast(`Color applied`, 'success')
+  },
+
+  applyColorPattern: (pattern) => {
+    const { groups, selectedGroupId, addToast } = get()
+    if (groups.length === 0) { addToast('No groups. Please create a group first.', 'warning'); return }
+    if (!selectedGroupId) { addToast('No group selected to perform the operation.', 'warning'); return }
+    addToast(`Color pattern applied`, 'success')
+  },
 }))

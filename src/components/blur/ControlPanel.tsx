@@ -4,27 +4,33 @@ import { useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { useBlurStore, type LaserGroup } from '@/store/blur-store'
 import { EFFECTS_CATEGORIES } from './effects-categories'
-import { Zap } from 'lucide-react'
 
 export function ControlPanel() {
   const {
     groups,
+    selectedGroupId,
     masterOnOff,
     fadeOnOff,
     holdOnOff,
     holdFadeOnOff,
     selectedEffect,
+    tiltDirection,
+    panDirection,
     setMasterOnOff,
     setFadeOnOff,
     setHoldOnOff,
     setHoldFadeOnOff,
     setSelectedEffect,
+    setTiltDirection,
+    setPanDirection,
   } = useBlurStore()
 
   const handleHoldOnDown = useCallback(() => setHoldOnOff(true), [setHoldOnOff])
   const handleHoldOnUp = useCallback(() => setHoldOnOff(false), [setHoldOnOff])
   const handleHoldFadeDown = useCallback(() => setHoldFadeOnOff(true), [setHoldFadeOnOff])
   const handleHoldFadeUp = useCallback(() => setHoldFadeOnOff(false), [setHoldFadeOnOff])
+
+  const selectedGroup = groups.find((g) => g.id === selectedGroupId)
 
   return (
     <motion.div
@@ -35,29 +41,34 @@ export function ControlPanel() {
       transition={{ duration: 0.4, delay: 0.15 }}
       style={{ fontFamily: 'var(--font-inter)' }}
     >
-      {/* ── Top Row ── */}
+      {/* Top Row */}
       <div className="flex gap-3 h-[180px] flex-shrink-0">
-        <CustomGroupPanel groups={groups} />
+        <CustomGroupPanel groups={groups} selectedGroupId={selectedGroupId} />
         <PanelFrame title="Custom Effects">
-          <EmptyState />
+          <span className="text-[11px] text-neutral-700">Coming soon</span>
         </PanelFrame>
       </div>
 
-      {/* ── Bottom: Effects ── */}
+      {/* Bottom: Effects */}
       <div className="flex-1 rounded-xl border border-neutral-800/70 bg-neutral-950/50 overflow-hidden flex flex-col">
-        <PanelHeader>Effects</PanelHeader>
+        <PanelHeader>
+          Effects
+          {selectedGroup && (
+            <span className="ml-2 text-[10px] font-normal text-neutral-600">
+              -- {selectedGroup.name}
+            </span>
+          )}
+        </PanelHeader>
 
         <div className="flex flex-1 min-h-0">
-          {/* Left: Toggles + Hold Buttons */}
-          <div className="w-[210px] flex-shrink-0 border-r border-neutral-800/50 p-3 flex flex-col gap-0.5">
-            {/* Section: Normal Toggles */}
+          {/* Left: Toggles + Hold + Tilt/Pan */}
+          <div className="w-[200px] flex-shrink-0 border-r border-neutral-800/50 p-3 flex flex-col gap-0.5">
             <SectionLabel>Toggles</SectionLabel>
-            <ToggleSwitch label="On / Off" active={masterOnOff} onChange={setMasterOnOff} />
-            <ToggleSwitch label="Fade On / Off" active={fadeOnOff} onChange={setFadeOnOff} />
+            <FlatButton label="On / Off" active={masterOnOff} onClick={() => setMasterOnOff(!masterOnOff)} />
+            <FlatButton label="Fade On / Off" active={fadeOnOff} onClick={() => setFadeOnOff(!fadeOnOff)} />
 
             <div className="my-2 border-t border-neutral-800/40" />
 
-            {/* Section: Hold Buttons */}
             <SectionLabel>Hold</SectionLabel>
             <HoldButton
               label="Hold On / Off"
@@ -73,6 +84,12 @@ export function ControlPanel() {
               onMouseUp={handleHoldFadeUp}
               onMouseLeave={handleHoldFadeUp}
             />
+
+            <div className="my-2 border-t border-neutral-800/40" />
+
+            <SectionLabel>Direction</SectionLabel>
+            <DirectionControl label="Tilt" value={tiltDirection} onChange={setTiltDirection} />
+            <DirectionControl label="Pan" value={panDirection} onChange={setPanDirection} />
           </div>
 
           {/* Right: Scrollable Effects */}
@@ -100,13 +117,6 @@ export function ControlPanel() {
                         whileTap={{ scale: 0.98 }}
                       >
                         {effect.name}
-                        {isSelected && (
-                          <motion.div
-                            className="absolute inset-0 rounded-lg border border-white/10 pointer-events-none"
-                            layoutId="effect-selected"
-                            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                          />
-                        )}
                       </motion.button>
                     )
                   })}
@@ -139,49 +149,6 @@ function PanelHeader({ children }: { children: React.ReactNode }) {
   )
 }
 
-function EmptyState() {
-  return <span className="text-[11px] text-neutral-700">Coming soon</span>
-}
-
-/* ─── Custom Group Panel (synced from Group panel) ─ */
-
-function CustomGroupPanel({ groups }: { groups: LaserGroup[] }) {
-  if (groups.length === 0) {
-    return (
-      <div className="flex-1 rounded-xl border border-neutral-800/70 bg-neutral-950/50 overflow-hidden flex flex-col">
-        <PanelHeader>Custom Group</PanelHeader>
-        <div className="flex-1 flex flex-col items-center justify-center gap-2">
-          <Zap className="w-5 h-5 text-neutral-800" />
-          <span className="text-[11px] text-neutral-700">No groups yet</span>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex-1 rounded-xl border border-neutral-800/70 bg-neutral-950/50 overflow-hidden flex flex-col">
-      <PanelHeader>Custom Group</PanelHeader>
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
-        {groups.map((group) => (
-          <div
-            key={group.id}
-            className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-neutral-800/20 transition-colors cursor-pointer group"
-          >
-            <span className="text-[11px] font-medium text-neutral-300 group-hover:text-white truncate">
-              {group.name}
-            </span>
-            <span className="text-[9px] px-1.5 py-0.5 rounded bg-neutral-800/60 text-neutral-500 flex-shrink-0">
-              {group.mode === 'fixture'
-                ? `${group.selectedFixtures.length}F`
-                : `${group.selectedBeams.length}B`}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <span className="text-[9px] font-semibold uppercase tracking-widest text-neutral-700 px-1 py-1.5">
@@ -190,40 +157,35 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
-function ToggleSwitch({
+/* ─── Flat Button (replaces toggle switch) ──── */
+
+function FlatButton({
   label,
   active,
-  onChange,
+  onClick,
 }: {
   label: string
   active: boolean
-  onChange: (v: boolean) => void
+  onClick: () => void
 }) {
   return (
     <button
-      className="flex items-center gap-3 w-full px-1 py-2 rounded-lg hover:bg-neutral-800/20 transition-colors duration-150 cursor-pointer"
-      onClick={() => onChange(!active)}
+      className={`flex items-center w-full px-2 py-2 rounded-lg transition-colors duration-150 cursor-pointer border ${
+        active
+          ? 'bg-neutral-800/50 border-neutral-700 text-white'
+          : 'border-neutral-800/40 text-neutral-600 hover:text-neutral-400 hover:border-neutral-700'
+      }`}
+      onClick={onClick}
     >
-      <div
-        className={`relative w-9 h-5 rounded-full transition-colors duration-200 flex-shrink-0 ${
-          active ? 'bg-red-500/80' : 'bg-neutral-800'
-        }`}
-      >
-        <motion.div
-          className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm"
-          animate={{ left: active ? '18px' : '2px' }}
-          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-        />
-      </div>
-      <span className={`text-[11px] font-medium transition-colors duration-150 ${active ? 'text-neutral-200' : 'text-neutral-600'}`}>
-        {label}
-      </span>
-      <span className="ml-auto text-[11px] font-bold">
-        {active ? <span className="text-emerald-400">O</span> : <span className="text-red-500">X</span>}
+      <span className="text-[11px] font-medium">{label}</span>
+      <span className="ml-auto text-[10px] font-bold tracking-wider">
+        {active ? 'ON' : 'OFF'}
       </span>
     </button>
   )
 }
+
+/* ─── Hold Button ────────────────────────────── */
 
 function HoldButton({
   label,
@@ -240,26 +202,129 @@ function HoldButton({
 }) {
   return (
     <button
-      className={`relative flex items-center justify-center w-full px-3 py-2.5 rounded-lg border transition-all duration-150 select-none cursor-pointer ${
+      className={`flex items-center w-full px-2 py-2.5 rounded-lg border transition-all duration-150 select-none cursor-pointer ${
         active
-          ? 'bg-red-500/15 border-red-500/40 text-white'
-          : 'bg-neutral-900/30 border-neutral-800 text-neutral-500 hover:border-neutral-700 hover:text-neutral-300'
+          ? 'bg-neutral-800/60 border-neutral-600 text-white'
+          : 'border-neutral-800/40 text-neutral-600 hover:text-neutral-400 hover:border-neutral-700'
       }`}
       onMouseDown={onMouseDown}
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseLeave}
     >
-      {active && (
-        <motion.div
-          className="absolute inset-0 rounded-lg bg-red-500/5 pointer-events-none"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-        />
-      )}
       <span className="text-[11px] font-medium">{label}</span>
-      <span className="ml-2 text-[11px] font-bold">
-        {active ? <span className="text-emerald-400">O</span> : <span className="text-red-500/60">X</span>}
+      <span className="ml-auto text-[10px] font-bold tracking-wider">
+        {active ? 'ON' : 'OFF'}
       </span>
     </button>
+  )
+}
+
+/* ─── Direction Control (< center >) ─────────── */
+
+function DirectionControl({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: number // -1 left, 0 center, 1 right
+  onChange: (v: number) => void
+}) {
+  return (
+    <div className="flex items-center gap-1 px-1 py-1.5">
+      <span className="text-[10px] text-neutral-600 w-8 flex-shrink-0">{label}</span>
+      <button
+        className={`flex-1 h-7 rounded border text-[11px] font-bold transition-colors cursor-pointer ${
+          value === -1
+            ? 'bg-neutral-800/60 border-neutral-600 text-white'
+            : 'border-neutral-800/40 text-neutral-600 hover:text-neutral-400 hover:border-neutral-700'
+        }`}
+        onClick={() => onChange(value === -1 ? 0 : -1)}
+      >
+        &lt;
+      </button>
+      <button
+        className={`flex-1 h-7 rounded border text-[9px] font-medium transition-colors cursor-pointer ${
+          value === 0
+            ? 'bg-neutral-800/40 border-neutral-700 text-neutral-300'
+            : 'border-neutral-800/30 text-neutral-700'
+        }`}
+        onClick={() => onChange(0)}
+      >
+        --
+      </button>
+      <button
+        className={`flex-1 h-7 rounded border text-[11px] font-bold transition-colors cursor-pointer ${
+          value === 1
+            ? 'bg-neutral-800/60 border-neutral-600 text-white'
+            : 'border-neutral-800/40 text-neutral-600 hover:text-neutral-400 hover:border-neutral-700'
+        }`}
+        onClick={() => onChange(value === 1 ? 0 : 1)}
+      >
+        &gt;
+      </button>
+    </div>
+  )
+}
+
+/* ─── Custom Group Panel ─────────────────────── */
+
+function CustomGroupPanel({
+  groups,
+  selectedGroupId,
+}: {
+  groups: LaserGroup[]
+  selectedGroupId: string | null
+}) {
+  const setSelectedGroupId = useBlurStore((s) => s.setSelectedGroupId)
+
+  if (groups.length === 0) {
+    return (
+      <div className="flex-1 rounded-xl border border-neutral-800/70 bg-neutral-950/50 overflow-hidden flex flex-col">
+        <PanelHeader>Custom Group</PanelHeader>
+        <div className="flex-1 flex flex-col items-center justify-center gap-2 px-4">
+          <motion.span
+            className="text-[11px] text-neutral-500"
+            animate={{ opacity: [0.3, 1, 0.3] }}
+            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            No groups -- please create one
+          </motion.span>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex-1 rounded-xl border border-neutral-800/70 bg-neutral-950/50 overflow-hidden flex flex-col">
+      <PanelHeader>Custom Group</PanelHeader>
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
+        {groups.map((group) => (
+          <div
+            key={group.id}
+            className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer ${
+              selectedGroupId === group.id
+                ? 'bg-neutral-800/40 border border-neutral-700'
+                : 'border border-transparent hover:bg-neutral-800/20'
+            }`}
+            onClick={() => setSelectedGroupId(group.id)}
+          >
+            <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+              selectedGroupId === group.id ? 'bg-white' : 'bg-neutral-700'
+            }`} />
+            <span className={`text-[11px] font-medium truncate ${
+              selectedGroupId === group.id ? 'text-white' : 'text-neutral-400'
+            }`}>
+              {group.name}
+            </span>
+            <span className="text-[9px] px-1.5 py-0.5 rounded bg-neutral-800/60 text-neutral-500 flex-shrink-0 ml-auto">
+              {group.mode === 'fixture'
+                ? `${group.selectedFixtures.length}F`
+                : `${group.selectedBeams.length}B`}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }

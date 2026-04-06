@@ -7,30 +7,19 @@ import {
   BEAMS_PER_FIXTURE,
   type LaserGroup,
 } from '@/store/blur-store'
-import { Plus, Zap, Target, Trash2, Pencil, X } from 'lucide-react'
 
-const FIXTURE_COUNT = 24 // How many lasers to show in the selector
+const FIXTURE_COUNT = 24
 
 export function GroupPanel() {
-  const {
-    groups,
-    groupModalOpen,
-    groupMode,
-    selectedFixtures,
-    selectedBeams,
-    groupNameInput,
-    deleteConfirmId,
-    openGroupModal,
-    closeGroupModal,
-    setGroupMode,
-    toggleFixture,
-    toggleBeam,
-    setGroupNameInput,
-    saveGroup,
-    deleteGroup,
-    confirmDeleteGroup,
-    cancelDeleteGroup,
-  } = useBlurStore()
+  const groups = useBlurStore((s) => s.groups)
+  const selectedGroupId = useBlurStore((s) => s.selectedGroupId)
+  const groupModalOpen = useBlurStore((s) => s.groupModalOpen)
+  const deleteConfirmId = useBlurStore((s) => s.deleteConfirmId)
+  const openGroupModal = useBlurStore((s) => s.openGroupModal)
+  const setSelectedGroupId = useBlurStore((s) => s.setSelectedGroupId)
+  const confirmDeleteGroup = useBlurStore((s) => s.confirmDeleteGroup)
+  const cancelDeleteGroup = useBlurStore((s) => s.cancelDeleteGroup)
+  const deleteGroup = useBlurStore((s) => s.deleteGroup)
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; groupId: string } | null>(null)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -52,7 +41,6 @@ export function GroupPanel() {
     confirmDeleteGroup(groupId)
   }, [closeContextMenu, confirmDeleteGroup])
 
-  // Close context menu on click outside
   const handleClick = useCallback(() => {
     if (contextMenu) closeContextMenu()
   }, [contextMenu, closeContextMenu])
@@ -77,17 +65,16 @@ export function GroupPanel() {
           </p>
         </div>
         <motion.button
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-neutral-800 text-[12px] font-medium text-neutral-300 hover:bg-white/10 hover:text-white hover:border-neutral-600 transition-all duration-200 cursor-pointer"
+          className="px-4 py-2 rounded-lg bg-white/5 border border-neutral-800 text-[12px] font-medium text-neutral-300 hover:bg-white/10 hover:text-white hover:border-neutral-600 transition-all duration-200 cursor-pointer"
           onClick={() => openGroupModal()}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
         >
-          <Plus className="w-3.5 h-3.5" />
           Add Group
         </motion.button>
       </div>
 
-      {/* Content: List or Modal */}
+      {/* Content */}
       <AnimatePresence mode="wait">
         {groupModalOpen ? (
           <GroupCreator key="creator" />
@@ -95,8 +82,10 @@ export function GroupPanel() {
           <GroupList
             key="list"
             groups={groups}
+            selectedGroupId={selectedGroupId}
             deleteConfirmId={deleteConfirmId}
             onContextMenu={handleContextMenu}
+            onSelect={setSelectedGroupId}
             onDelete={deleteGroup}
             onCancelDelete={cancelDeleteGroup}
           />
@@ -123,14 +112,18 @@ export function GroupPanel() {
 
 function GroupList({
   groups,
+  selectedGroupId,
   deleteConfirmId,
   onContextMenu,
+  onSelect,
   onDelete,
   onCancelDelete,
 }: {
   groups: LaserGroup[]
+  selectedGroupId: string | null
   deleteConfirmId: string | null
   onContextMenu: (e: React.MouseEvent, id: string) => void
+  onSelect: (id: string) => void
   onDelete: (id: string) => void
   onCancelDelete: () => void
 }) {
@@ -142,10 +135,10 @@ function GroupList({
         animate={{ opacity: 1 }}
       >
         <div className="w-16 h-16 rounded-2xl bg-neutral-900/50 border border-neutral-800/50 flex items-center justify-center">
-          <Zap className="w-7 h-7 text-neutral-700" />
+          <span className="text-2xl text-neutral-800 font-bold">G</span>
         </div>
         <div className="text-center">
-          <p className="text-[13px] font-medium text-neutral-400">No groups created</p>
+          <p className="text-[13px] font-medium text-neutral-500">No groups created</p>
           <p className="text-[11px] text-neutral-700 mt-1">
             Create your first laser group to get started
           </p>
@@ -158,6 +151,7 @@ function GroupList({
     <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1">
       {groups.map((group, index) => {
         const isDeleting = deleteConfirmId === group.id
+        const isSelected = selectedGroupId === group.id
         const count = group.mode === 'fixture'
           ? group.selectedFixtures.length
           : group.selectedBeams.length
@@ -165,38 +159,47 @@ function GroupList({
         return (
           <motion.div
             key={group.id}
-            className="relative rounded-xl border border-neutral-800/70 bg-neutral-950/50 p-4"
+            className={`relative rounded-xl border p-4 cursor-pointer transition-colors ${
+              isSelected
+                ? 'border-neutral-600 bg-neutral-900/40'
+                : 'border-neutral-800/70 bg-neutral-950/50 hover:border-neutral-700'
+            }`}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.2, delay: index * 0.03 }}
+            onClick={() => onSelect(group.id)}
             onContextMenu={(e) => onContextMenu(e, group.id)}
           >
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[13px] font-semibold text-white">{group.name}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded-md ${
-                    group.mode === 'fixture'
-                      ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                      : 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
-                  }`}>
-                    {group.mode === 'fixture' ? 'Fixture' : 'Individual'}
-                  </span>
-                  <span className="text-[10px] text-neutral-600">
-                    {count} {group.mode === 'fixture' ? 'fixture' : 'beam'}{count !== 1 ? 's' : ''}
-                  </span>
+              <div className="flex items-center gap-3">
+                {/* Selection indicator */}
+                <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 transition-colors ${
+                  isSelected ? 'bg-white' : 'bg-neutral-700'
+                }`} />
+                <div>
+                  <p className={`text-[13px] font-semibold ${isSelected ? 'text-white' : 'text-neutral-300'}`}>
+                    {group.name}
+                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[10px] text-neutral-600 font-medium px-2 py-0.5 rounded-md bg-neutral-800/40">
+                      {group.mode === 'fixture' ? 'Fixture' : 'Individual'}
+                    </span>
+                    <span className="text-[10px] text-neutral-600">
+                      {count} {group.mode === 'fixture' ? 'fixture' : 'beam'}{count !== 1 ? 's' : ''}
+                    </span>
+                  </div>
                 </div>
               </div>
 
               {/* Selection preview pills */}
               <div className="flex items-center gap-1 max-w-[200px] flex-wrap justify-end">
                 {(group.mode === 'fixture' ? group.selectedFixtures.map(String) : group.selectedBeams.slice(0, 8)).map((item) => (
-                  <span key={item} className="text-[9px] px-1.5 py-0.5 rounded bg-neutral-800/60 text-neutral-400">
+                  <span key={item} className="text-[9px] px-1.5 py-0.5 rounded bg-neutral-800/60 text-neutral-500">
                     {item}
                   </span>
                 ))}
-                {count > 8 && <span className="text-[9px] text-neutral-600">+{count - 8}</span>}
+                {count > 8 && <span className="text-[9px] text-neutral-700">+{count - 8}</span>}
               </div>
             </div>
 
@@ -209,16 +212,16 @@ function GroupList({
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
                 >
-                  <span className="text-[11px] text-red-400">Delete this group?</span>
+                  <span className="text-[11px] text-neutral-400">Delete this group?</span>
                   <div className="flex items-center gap-2">
                     <button
-                      className="px-3 py-1 text-[11px] font-medium text-neutral-400 hover:text-white rounded-md hover:bg-neutral-800/40 transition-colors cursor-pointer"
+                      className="px-3 py-1 text-[11px] font-medium text-neutral-500 hover:text-white rounded-md hover:bg-neutral-800/40 transition-colors cursor-pointer"
                       onClick={(e) => { e.stopPropagation(); onCancelDelete() }}
                     >
                       Cancel
                     </button>
                     <button
-                      className="px-3 py-1 text-[11px] font-medium text-red-400 bg-red-500/10 border border-red-500/20 rounded-md hover:bg-red-500/20 transition-colors cursor-pointer"
+                      className="px-3 py-1 text-[11px] font-medium text-neutral-300 bg-neutral-800/60 border border-neutral-700 rounded-md hover:bg-neutral-700/60 transition-colors cursor-pointer"
                       onClick={(e) => { e.stopPropagation(); onDelete(group.id) }}
                     >
                       Delete
@@ -246,7 +249,6 @@ function ContextMenu({
 }) {
   return (
     <>
-      {/* Backdrop */}
       <motion.div
         className="fixed inset-0 z-[90]"
         initial={{ opacity: 0 }}
@@ -254,7 +256,6 @@ function ContextMenu({
         exit={{ opacity: 0 }}
         onClick={onClose}
       />
-      {/* Menu */}
       <motion.div
         className="fixed z-[100] w-40 rounded-lg border border-neutral-800 bg-neutral-950/95 backdrop-blur-md p-1 shadow-xl"
         style={{ left: x, top: y }}
@@ -264,17 +265,15 @@ function ContextMenu({
         transition={{ duration: 0.12 }}
       >
         <button
-          className="flex items-center gap-2 w-full px-3 py-2 text-[12px] text-neutral-300 hover:bg-neutral-800/50 hover:text-white rounded-md transition-colors cursor-pointer"
+          className="w-full px-3 py-2 text-[12px] text-neutral-300 hover:bg-neutral-800/50 hover:text-white rounded-md transition-colors cursor-pointer text-left"
           onClick={(e) => { e.stopPropagation(); onEdit() }}
         >
-          <Pencil className="w-3.5 h-3.5 text-neutral-500" />
           Edit
         </button>
         <button
-          className="flex items-center gap-2 w-full px-3 py-2 text-[12px] text-red-400 hover:bg-red-500/10 rounded-md transition-colors cursor-pointer"
+          className="w-full px-3 py-2 text-[12px] text-neutral-400 hover:bg-neutral-800/50 hover:text-white rounded-md transition-colors cursor-pointer text-left"
           onClick={(e) => { e.stopPropagation(); onDelete() }}
         >
-          <Trash2 className="w-3.5 h-3.5" />
           Delete
         </button>
       </motion.div>
@@ -291,7 +290,6 @@ function GroupCreator() {
     selectedFixtures,
     selectedBeams,
     groupNameInput,
-    openGroupModal,
     closeGroupModal,
     setGroupMode,
     toggleFixture,
@@ -317,8 +315,7 @@ function GroupCreator() {
           className="flex items-center gap-1.5 text-[12px] text-neutral-500 hover:text-white transition-colors cursor-pointer"
           onClick={closeGroupModal}
         >
-          <X className="w-3.5 h-3.5" />
-          Back
+          &larr; Back
         </button>
         <span className="text-[13px] font-semibold text-white">
           {isEditing ? 'Edit Group' : 'Create Group'}
@@ -328,7 +325,7 @@ function GroupCreator() {
       {/* Name Input */}
       <div className="mb-4">
         <label className="text-[10px] font-semibold uppercase tracking-widest text-neutral-600 block mb-1.5">
-          Group Name <span className="text-red-500">*</span>
+          Group Name
         </label>
         <input
           type="text"
@@ -339,33 +336,31 @@ function GroupCreator() {
           className="w-full h-9 px-3 text-[12px] text-white bg-neutral-900/60 border border-neutral-800 rounded-lg outline-none placeholder:text-neutral-700 focus:border-neutral-600 transition-colors"
         />
         <p className="text-[10px] text-neutral-700 mt-1">
-          No abusive or explicit content
+          Letters, numbers, spaces, hyphens, underscores only
         </p>
       </div>
 
-      {/* Mode Selector: Fixture / Individual */}
+      {/* Mode Selector */}
       <div className="flex items-center gap-2 mb-4">
         <span className="text-[10px] font-semibold uppercase tracking-widest text-neutral-600 mr-2">Mode</span>
         <button
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium border transition-colors cursor-pointer ${
+          className={`px-3 py-1.5 rounded-lg text-[11px] font-medium border transition-colors cursor-pointer ${
             groupMode === 'fixture'
-              ? 'bg-blue-500/15 border-blue-500/30 text-blue-400'
-              : 'bg-neutral-900/30 border-neutral-800 text-neutral-500 hover:text-neutral-300'
+              ? 'bg-neutral-800/50 border-neutral-600 text-white'
+              : 'bg-neutral-900/20 border-neutral-800/40 text-neutral-500 hover:text-neutral-300'
           }`}
           onClick={() => setGroupMode('fixture')}
         >
-          <Zap className="w-3 h-3" />
           Fixture
         </button>
         <button
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium border transition-colors cursor-pointer ${
+          className={`px-3 py-1.5 rounded-lg text-[11px] font-medium border transition-colors cursor-pointer ${
             groupMode === 'individual'
-              ? 'bg-purple-500/15 border-purple-500/30 text-purple-400'
-              : 'bg-neutral-900/30 border-neutral-800 text-neutral-500 hover:text-neutral-300'
+              ? 'bg-neutral-800/50 border-neutral-600 text-white'
+              : 'bg-neutral-900/20 border-neutral-800/40 text-neutral-500 hover:text-neutral-300'
           }`}
           onClick={() => setGroupMode('individual')}
         >
-          <Target className="w-3 h-3" />
           Individual
         </button>
       </div>
@@ -417,8 +412,8 @@ function FixtureSelector({
             key={num}
             className={`h-10 rounded-lg border text-[12px] font-semibold transition-colors cursor-pointer ${
               isSelected
-                ? 'bg-blue-500/20 border-blue-500/40 text-blue-300'
-                : 'bg-neutral-900/30 border-neutral-800/50 text-neutral-600 hover:border-neutral-700 hover:text-neutral-400'
+                ? 'bg-neutral-800/60 border-neutral-600 text-white'
+                : 'bg-neutral-900/20 border-neutral-800/50 text-neutral-600 hover:border-neutral-700 hover:text-neutral-400'
             }`}
             onClick={() => onToggle(num)}
           >
@@ -430,7 +425,7 @@ function FixtureSelector({
   )
 }
 
-/* ─── Individual Selector (expandable fixtures) ──── */
+/* ─── Individual Selector ────────────────────────── */
 
 function IndividualSelector({
   selected,
@@ -443,7 +438,6 @@ function IndividualSelector({
 
   return (
     <div className="space-y-2">
-      {/* Fixture rows */}
       {Array.from({ length: FIXTURE_COUNT }, (_, i) => i + 1).map((fixtureNum) => {
         const beamKeys = Array.from(
           { length: BEAMS_PER_FIXTURE },
@@ -455,7 +449,6 @@ function IndividualSelector({
 
         return (
           <div key={fixtureNum} className="rounded-lg border border-neutral-800/50 overflow-hidden">
-            {/* Fixture header */}
             <button
               className={`flex items-center gap-2 w-full px-3 py-2 text-left transition-colors cursor-pointer ${
                 isExpanded ? 'bg-neutral-800/30' : 'hover:bg-neutral-900/30'
@@ -467,9 +460,8 @@ function IndividualSelector({
                 {selectedCount > 0 ? `${selectedCount}/${BEAMS_PER_FIXTURE} beams` : `${BEAMS_PER_FIXTURE} beams`}
               </span>
 
-              {/* Select all */}
               <button
-                className="ml-auto text-[10px] font-medium px-2 py-0.5 rounded-md transition-colors cursor-pointer"
+                className="ml-auto text-[10px] font-medium px-2 py-0.5 rounded-md transition-colors cursor-pointer text-neutral-500 hover:text-neutral-300"
                 onClick={(e) => {
                   e.stopPropagation()
                   if (allSelected) {
@@ -478,16 +470,11 @@ function IndividualSelector({
                     beamKeys.forEach((k) => { if (!selected.includes(k)) onToggle(k) })
                   }
                 }}
-                style={{
-                  color: allSelected ? '#f87171' : '#4ade80',
-                  background: allSelected ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)',
-                }}
               >
-                {allSelected ? 'Deselect All' : 'Select All'}
+                {allSelected ? 'Deselect' : 'Select All'}
               </button>
             </button>
 
-            {/* Expanded beams */}
             <AnimatePresence>
               {isExpanded && (
                 <motion.div
@@ -506,8 +493,8 @@ function IndividualSelector({
                           key={key}
                           className={`h-8 rounded border text-[10px] font-medium transition-colors cursor-pointer ${
                             isSelected
-                              ? 'bg-purple-500/20 border-purple-500/40 text-purple-300'
-                              : 'bg-neutral-900/30 border-neutral-800/30 text-neutral-600 hover:border-neutral-700 hover:text-neutral-400'
+                              ? 'bg-neutral-800/60 border-neutral-600 text-white'
+                              : 'bg-neutral-900/20 border-neutral-800/30 text-neutral-600 hover:border-neutral-700 hover:text-neutral-400'
                           }`}
                           onClick={() => onToggle(key)}
                         >

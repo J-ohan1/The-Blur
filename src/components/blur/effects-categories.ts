@@ -3,27 +3,27 @@ import { EFFECTS } from '@/store/blur-store'
 export const EFFECTS_CATEGORIES = [
   {
     category: 'wave',
-    label: '🌊 Waves',
+    label: 'Waves',
     items: EFFECTS.filter((e) => e.category === 'wave'),
   },
   {
     category: 'chase',
-    label: '💨 Chase',
+    label: 'Chase',
     items: EFFECTS.filter((e) => e.category === 'chase'),
   },
   {
     category: 'pattern',
-    label: '✦ Pattern',
+    label: 'Pattern',
     items: EFFECTS.filter((e) => e.category === 'pattern'),
   },
   {
     category: 'color',
-    label: '🎨 Color',
+    label: 'Color',
     items: EFFECTS.filter((e) => e.category === 'color'),
   },
   {
     category: 'advanced',
-    label: '⚡ Advanced',
+    label: 'Advanced',
     items: EFFECTS.filter((e) => e.category === 'advanced'),
   },
 ]

@@ -10,7 +10,6 @@ import {
   canPerform,
   type PlayerRole,
 } from '@/store/blur-store'
-import { Search, Shield, User as UserIcon } from 'lucide-react'
 
 const ROLE_FILTERS: { label: string; value: PlayerRole | 'all' }[] = [
   { label: 'All', value: 'all' },
@@ -55,21 +54,18 @@ export function PlayerPanel() {
       transition={{ duration: 0.4, delay: 0.15 }}
       style={{ fontFamily: 'var(--font-inter)' }}
     >
-      {/* ── Search + Filter Bar ── */}
+      {/* Search + Filter */}
       <div className="flex items-center gap-3 mb-4">
-        {/* Search */}
         <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-600" />
           <input
             type="text"
             placeholder="Search players..."
             value={playerSearch}
             onChange={(e) => setPlayerSearch(e.target.value)}
-            className="w-full h-8 pl-9 pr-3 text-[12px] text-neutral-300 bg-neutral-900/60 border border-neutral-800 rounded-lg outline-none placeholder:text-neutral-700 focus:border-neutral-600 transition-colors"
+            className="w-full h-8 pl-3 pr-3 text-[12px] text-neutral-300 bg-neutral-900/60 border border-neutral-800 rounded-lg outline-none placeholder:text-neutral-700 focus:border-neutral-600 transition-colors"
           />
         </div>
 
-        {/* Filter buttons */}
         <div className="flex items-center gap-1">
           {ROLE_FILTERS.map((f) => (
             <button
@@ -87,14 +83,14 @@ export function PlayerPanel() {
         </div>
       </div>
 
-      {/* ── Player Count ── */}
+      {/* Player Count */}
       <div className="mb-3 px-1">
         <span className="text-[10px] text-neutral-700 uppercase tracking-widest">
           {filteredPlayers.length} Player{filteredPlayers.length !== 1 ? 's' : ''} found
         </span>
       </div>
 
-      {/* ── Player Grid ── */}
+      {/* Player Grid */}
       <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
         <div className="grid grid-cols-2 gap-3">
           <AnimatePresence>
@@ -161,20 +157,16 @@ function PlayerCard({
       {/* Player info */}
       <div className="flex items-center gap-3 p-4 pb-3">
         {/* Headshot */}
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-neutral-800 to-neutral-900 border border-neutral-700/50 flex items-center justify-center flex-shrink-0">
-          <UserIcon className="w-4 h-4 text-neutral-500" />
+        <div className="w-10 h-10 rounded-full bg-neutral-800 border border-neutral-700/50 flex items-center justify-center flex-shrink-0">
+          <span className="text-sm font-bold text-neutral-400">
+            {player.name.charAt(0).toUpperCase()}
+          </span>
         </div>
 
         {/* Name + Role */}
         <div className="min-w-0">
           <p className="text-[13px] font-medium text-white truncate">{player.name}</p>
-          <p className={`text-[10px] font-medium ${
-            player.role === 'staff' ? 'text-blue-400' :
-            player.role === 'hardcoded_whitelist' ? 'text-emerald-400' :
-            player.role === 'temp_whitelist' ? 'text-yellow-400' :
-            player.role === 'blacklisted' ? 'text-red-400' :
-            'text-neutral-600'
-          }`}>
+          <p className="text-[10px] font-medium text-neutral-600">
             {roleLabel(player.role)}
           </p>
         </div>
@@ -186,19 +178,16 @@ function PlayerCard({
           label="Whitelist"
           active={activeButtons.whitelist && wlCheck.allowed}
           onClick={onWhitelist}
-          color="emerald"
         />
         <ActionButton
           label="Remove"
           active={activeButtons.remove && rmCheck.allowed}
           onClick={onRemove}
-          color="amber"
         />
         <ActionButton
           label="Kick"
           active={activeButtons.kick && kickCheck.allowed}
           onClick={onKick}
-          color="red"
         />
       </div>
     </motion.div>
@@ -209,32 +198,17 @@ function ActionButton({
   label,
   active,
   onClick,
-  color,
 }: {
   label: string
   active: boolean
   onClick: () => void
-  color: 'emerald' | 'amber' | 'red'
 }) {
-  const colors = {
-    emerald: {
-      active: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25',
-      inactive: 'bg-neutral-900/30 border-neutral-800/50 text-neutral-700',
-    },
-    amber: {
-      active: 'bg-amber-500/15 border-amber-500/30 text-amber-400 hover:bg-amber-500/25',
-      inactive: 'bg-neutral-900/30 border-neutral-800/50 text-neutral-700',
-    },
-    red: {
-      active: 'bg-red-500/15 border-red-500/30 text-red-400 hover:bg-red-500/25',
-      inactive: 'bg-neutral-900/30 border-neutral-800/50 text-neutral-700',
-    },
-  }
-
   return (
     <button
       className={`flex-1 py-1.5 rounded-lg border text-[11px] font-medium transition-colors duration-150 cursor-pointer ${
-        active ? colors[color].active : colors[color].inactive
+        active
+          ? 'bg-neutral-800/40 border-neutral-700 text-neutral-200 hover:bg-neutral-700/40'
+          : 'bg-neutral-900/20 border-neutral-800/40 text-neutral-700'
       }`}
       onClick={onClick}
       disabled={!active}
