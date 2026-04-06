@@ -31,6 +31,12 @@ export function NavBar() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [closeProfileDropdown])
 
+  const navButtons: { label: string; key: 'home' | 'control' | 'player' }[] = [
+    { label: 'Home', key: 'home' },
+    { label: 'Control', key: 'control' },
+    { label: 'Player', key: 'player' },
+  ]
+
   return (
     <>
       <motion.nav
@@ -54,17 +60,17 @@ export function NavBar() {
           </motion.button>
         </div>
 
-        {/* Center: Home + Control buttons */}
+        {/* Center: Nav buttons */}
         <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1">
-          {(['Home', 'Control'] as const).map((item) => {
-            const isActive = activePanel === item.toLowerCase()
+          {navButtons.map((item) => {
+            const isActive = activePanel === item.key
             return (
               <button
-                key={item}
+                key={item.key}
                 className="relative px-4 py-2 text-[13px] font-medium text-neutral-500 hover:text-white transition-colors duration-200 cursor-pointer"
-                onClick={() => setActivePanel(item.toLowerCase() as 'home' | 'control')}
+                onClick={() => setActivePanel(item.key)}
               >
-                {item}
+                {item.label}
                 {isActive && (
                   <motion.div
                     className="absolute bottom-0 left-2 right-2 h-[2px] bg-white rounded-full"

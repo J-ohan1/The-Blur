@@ -1,23 +1,19 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { useBlurStore } from '@/store/blur-store'
+import { useBlurStore, roleDotColor, roleLabel, type PlayerRole } from '@/store/blur-store'
 import { useEffect, useState } from 'react'
-import { ShieldCheck, ShieldAlert, Clock, Keyboard } from 'lucide-react'
+import { Clock, Keyboard, User } from 'lucide-react'
 
 export function ProfileDropdown() {
   const {
-    username,
-    isWhitelisted,
-    isTemporaryWhitelisted,
+    currentUser,
     getTimeSpent,
-    timeSpent,
     updateTimeSpent,
   } = useBlurStore()
 
   const [time, setTime] = useState(getTimeSpent())
 
-  // Update time every second
   useEffect(() => {
     const interval = setInterval(() => {
       updateTimeSpent()
@@ -28,45 +24,32 @@ export function ProfileDropdown() {
 
   return (
     <motion.div
-      className="fixed top-[60px] right-5 z-50 w-64 border border-neutral-800 rounded-xl bg-neutral-950/95 backdrop-blur-md p-4 shadow-2xl shadow-black/50"
+      className="fixed top-[56px] right-5 z-50 w-64 border border-neutral-800 rounded-xl bg-neutral-950/95 backdrop-blur-md p-4 shadow-2xl shadow-black/50"
       initial={{ opacity: 0, y: -8, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -8, scale: 0.96 }}
       transition={{ duration: 0.2 }}
       style={{ fontFamily: 'var(--font-inter)' }}
     >
-      {/* Username */}
+      {/* Username + Role Dot */}
       <div className="flex items-center gap-3 mb-3 pb-3 border-b border-neutral-800">
-        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-red-500/30 to-neutral-800 border border-neutral-700 flex items-center justify-center">
-          <span className="text-xs font-semibold text-white">{username.charAt(0)}</span>
+        <div className="relative">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-red-500/30 to-neutral-800 border border-neutral-700 flex items-center justify-center">
+            <User className="w-4 h-4 text-neutral-400" />
+          </div>
+          {/* Role dot on avatar */}
+          <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-neutral-950 ${roleDotColor(currentUser.role)}`} />
         </div>
-        <span className="text-sm font-medium text-white">{username}</span>
-      </div>
-
-      {/* Whitelist Status */}
-      <div className="mb-3">
-        <div className="flex items-center gap-2 mb-2">
-          {isWhitelisted ? (
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
-          ) : isTemporaryWhitelisted ? (
-            <ShieldAlert className="w-4 h-4 text-yellow-400" />
-          ) : (
-            <ShieldAlert className="w-4 h-4 text-neutral-500" />
-          )}
-          <span
-            className={`text-xs font-medium ${
-              isWhitelisted
-                ? 'text-emerald-400'
-                : isTemporaryWhitelisted
-                  ? 'text-yellow-400'
-                  : 'text-neutral-500'
-            }`}
-          >
-            {isWhitelisted
-              ? 'Whitelisted'
-              : isTemporaryWhitelisted
-                ? 'Temporary Whitelisted'
-                : 'Not Whitelisted'}
+        <div>
+          <span className="text-sm font-medium text-white block">{currentUser.name}</span>
+          <span className={`text-[10px] font-medium ${
+            currentUser.role === 'staff' ? 'text-blue-400' :
+            currentUser.role === 'hardcoded_whitelist' ? 'text-emerald-400' :
+            currentUser.role === 'temp_whitelist' ? 'text-yellow-400' :
+            currentUser.role === 'blacklisted' ? 'text-red-400' :
+            'text-neutral-500'
+          }`}>
+            {roleLabel(currentUser.role)}
           </span>
         </div>
       </div>

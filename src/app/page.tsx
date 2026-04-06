@@ -7,6 +7,8 @@ import { WelcomeScreen } from '@/components/blur/WelcomeScreen'
 import { NavBar } from '@/components/blur/NavBar'
 import { HomePanel } from '@/components/blur/HomePanel'
 import { ControlPanel } from '@/components/blur/ControlPanel'
+import { PlayerPanel } from '@/components/blur/PlayerPanel'
+import { ToastContainer } from '@/components/blur/ToastContainer'
 
 export default function Page() {
   const { phase, activePanel } = useBlurStore()
@@ -20,9 +22,11 @@ export default function Page() {
         {phase === 'main' && (
           <div key="main" className="h-full w-full">
             <NavBar />
+            <ToastContainer />
             <AnimatePresence mode="wait">
               {activePanel === 'home' && <HomePanel key="home" />}
               {activePanel === 'control' && <ControlPanel key="control" />}
+              {activePanel === 'player' && <PlayerPanel key="player" />}
             </AnimatePresence>
           </div>
         )}

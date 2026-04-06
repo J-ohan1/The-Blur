@@ -7,9 +7,13 @@ import { EFFECTS_CATEGORIES } from './effects-categories'
 
 export function ControlPanel() {
   const {
+    masterOnOff,
+    fadeOnOff,
     holdOnOff,
     holdFadeOnOff,
     selectedEffect,
+    setMasterOnOff,
+    setFadeOnOff,
     setHoldOnOff,
     setHoldFadeOnOff,
     setSelectedEffect,
@@ -44,8 +48,17 @@ export function ControlPanel() {
         <PanelHeader>Effects</PanelHeader>
 
         <div className="flex flex-1 min-h-0">
-          {/* Left: Hold Buttons */}
-          <div className="w-[200px] flex-shrink-0 border-r border-neutral-800/50 p-4 flex flex-col gap-2">
+          {/* Left: Toggles + Hold Buttons */}
+          <div className="w-[210px] flex-shrink-0 border-r border-neutral-800/50 p-3 flex flex-col gap-0.5">
+            {/* Section: Normal Toggles */}
+            <SectionLabel>Toggles</SectionLabel>
+            <ToggleSwitch label="On / Off" active={masterOnOff} onChange={setMasterOnOff} />
+            <ToggleSwitch label="Fade On / Off" active={fadeOnOff} onChange={setFadeOnOff} />
+
+            <div className="my-2 border-t border-neutral-800/40" />
+
+            {/* Section: Hold Buttons */}
+            <SectionLabel>Hold</SectionLabel>
             <HoldButton
               label="Hold On / Off"
               active={holdOnOff}
@@ -109,13 +122,7 @@ export function ControlPanel() {
 
 /* ─── Sub-components ──────────────────────────────── */
 
-function PanelFrame({
-  title,
-  children,
-}: {
-  title: string
-  children: React.ReactNode
-}) {
+function PanelFrame({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="flex-1 rounded-xl border border-neutral-800/70 bg-neutral-950/50 overflow-hidden flex flex-col">
       <PanelHeader>{title}</PanelHeader>
@@ -127,15 +134,56 @@ function PanelFrame({
 function PanelHeader({ children }: { children: React.ReactNode }) {
   return (
     <div className="h-8 flex items-center px-4 border-b border-neutral-800/50 flex-shrink-0">
-      <span className="text-[12px] font-semibold tracking-wide text-neutral-300">
-        {children}
-      </span>
+      <span className="text-[12px] font-semibold tracking-wide text-neutral-300">{children}</span>
     </div>
   )
 }
 
 function EmptyState() {
   return <span className="text-[11px] text-neutral-700">Coming soon</span>
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="text-[9px] font-semibold uppercase tracking-widest text-neutral-700 px-1 py-1.5">
+      {children}
+    </span>
+  )
+}
+
+function ToggleSwitch({
+  label,
+  active,
+  onChange,
+}: {
+  label: string
+  active: boolean
+  onChange: (v: boolean) => void
+}) {
+  return (
+    <button
+      className="flex items-center gap-3 w-full px-1 py-2 rounded-lg hover:bg-neutral-800/20 transition-colors duration-150 cursor-pointer"
+      onClick={() => onChange(!active)}
+    >
+      <div
+        className={`relative w-9 h-5 rounded-full transition-colors duration-200 flex-shrink-0 ${
+          active ? 'bg-red-500/80' : 'bg-neutral-800'
+        }`}
+      >
+        <motion.div
+          className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm"
+          animate={{ left: active ? '18px' : '2px' }}
+          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+        />
+      </div>
+      <span className={`text-[11px] font-medium transition-colors duration-150 ${active ? 'text-neutral-200' : 'text-neutral-600'}`}>
+        {label}
+      </span>
+      <span className="ml-auto text-[11px] font-bold">
+        {active ? <span className="text-emerald-400">O</span> : <span className="text-red-500">X</span>}
+      </span>
+    </button>
+  )
 }
 
 function HoldButton({
@@ -153,7 +201,7 @@ function HoldButton({
 }) {
   return (
     <button
-      className={`relative flex items-center justify-center w-full px-3 py-3 rounded-lg border transition-all duration-150 select-none cursor-pointer ${
+      className={`relative flex items-center justify-center w-full px-3 py-2.5 rounded-lg border transition-all duration-150 select-none cursor-pointer ${
         active
           ? 'bg-red-500/15 border-red-500/40 text-white'
           : 'bg-neutral-900/30 border-neutral-800 text-neutral-500 hover:border-neutral-700 hover:text-neutral-300'
@@ -162,7 +210,6 @@ function HoldButton({
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseLeave}
     >
-      {/* Glow when active */}
       {active && (
         <motion.div
           className="absolute inset-0 rounded-lg bg-red-500/5 pointer-events-none"
@@ -170,16 +217,9 @@ function HoldButton({
           animate={{ opacity: 1 }}
         />
       )}
-
       <span className="text-[11px] font-medium">{label}</span>
-
-      {/* O/X indicator */}
       <span className="ml-2 text-[11px] font-bold">
-        {active ? (
-          <span className="text-emerald-400">O</span>
-        ) : (
-          <span className="text-red-500/60">X</span>
-        )}
+        {active ? <span className="text-emerald-400">O</span> : <span className="text-red-500/60">X</span>}
       </span>
     </button>
   )
