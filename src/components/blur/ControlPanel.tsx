@@ -1,105 +1,76 @@
 'use client'
 
+import { useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { useBlurStore } from '@/store/blur-store'
 import { EFFECTS_CATEGORIES } from './effects-categories'
 
-/* ─── Control Panel Layout ────────────────────────────────
-   ┌──────────────────┬──────────────────┐
-   │  Custom Group    │  Custom Effects  │
-   ├──────────────────┴──────────────────┤
-   │              Effects               │
-   │  ┌─toggles──┐  ┌──scroll list────┐ │
-   │  │ On/Off    │  │ Strobe          │ │
-   │  │ Hold O/O  │  │ Random Indiv.   │ │
-   │  │ Fade O/O  │  │ Wave Up         │ │
-   │  │ HoldF O/O │  │ ...             │ │
-   │  └───────────┘  └─────────────────┘ │
-   └─────────────────────────────────────┘
-   ─────────────────────────────────────── */
-
 export function ControlPanel() {
   const {
-    masterOnOff,
     holdOnOff,
-    fadeOnOff,
     holdFadeOnOff,
     selectedEffect,
-    setMasterOnOff,
     setHoldOnOff,
-    setFadeOnOff,
     setHoldFadeOnOff,
     setSelectedEffect,
   } = useBlurStore()
+
+  const handleHoldOnDown = useCallback(() => setHoldOnOff(true), [setHoldOnOff])
+  const handleHoldOnUp = useCallback(() => setHoldOnOff(false), [setHoldOnOff])
+  const handleHoldFadeDown = useCallback(() => setHoldFadeOnOff(true), [setHoldFadeOnOff])
+  const handleHoldFadeUp = useCallback(() => setHoldFadeOnOff(false), [setHoldFadeOnOff])
 
   return (
     <motion.div
       className="h-full w-full flex flex-col p-4 pt-14 gap-3"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.5, delay: 0.25 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.4, delay: 0.15 }}
       style={{ fontFamily: 'var(--font-inter)' }}
     >
-      {/* ── Top Row: Custom Group + Custom Effects ── */}
+      {/* ── Top Row ── */}
       <div className="flex gap-3 h-[180px] flex-shrink-0">
-        {/* Custom Group */}
-        <div className="flex-1 rounded-xl border border-neutral-800/70 bg-neutral-950/50 overflow-hidden">
-          <PanelTitle>Custom Group</PanelTitle>
-          <div className="flex-1 flex items-center justify-center">
-            <span className="text-[11px] text-neutral-700">Coming soon</span>
-          </div>
-        </div>
-
-        {/* Custom Effects */}
-        <div className="flex-1 rounded-xl border border-neutral-800/70 bg-neutral-950/50 overflow-hidden">
-          <PanelTitle>Custom Effects</PanelTitle>
-          <div className="flex-1 flex items-center justify-center">
-            <span className="text-[11px] text-neutral-700">Coming soon</span>
-          </div>
-        </div>
+        <PanelFrame title="Custom Group">
+          <EmptyState />
+        </PanelFrame>
+        <PanelFrame title="Custom Effects">
+          <EmptyState />
+        </PanelFrame>
       </div>
 
       {/* ── Bottom: Effects ── */}
-      <div className="flex-1 rounded-xl border border-neutral-800/70 bg-neutral-950/50 overflow-hidden">
-        <PanelTitle>Effects</PanelTitle>
+      <div className="flex-1 rounded-xl border border-neutral-800/70 bg-neutral-950/50 overflow-hidden flex flex-col">
+        <PanelHeader>Effects</PanelHeader>
 
-        <div className="flex h-[calc(100%-32px)]">
-          {/* Left: Toggles */}
-          <div className="w-[200px] flex-shrink-0 border-r border-neutral-800/50 p-4 flex flex-col gap-1">
-            <ToggleSwitch
-              label="On / Off"
-              active={masterOnOff}
-              onChange={setMasterOnOff}
-            />
-            <ToggleSwitch
+        <div className="flex flex-1 min-h-0">
+          {/* Left: Hold Buttons */}
+          <div className="w-[200px] flex-shrink-0 border-r border-neutral-800/50 p-4 flex flex-col gap-2">
+            <HoldButton
               label="Hold On / Off"
               active={holdOnOff}
-              onChange={setHoldOnOff}
+              onMouseDown={handleHoldOnDown}
+              onMouseUp={handleHoldOnUp}
+              onMouseLeave={handleHoldOnUp}
             />
-            <ToggleSwitch
-              label="Fade On / Off"
-              active={fadeOnOff}
-              onChange={setFadeOnOff}
-            />
-            <ToggleSwitch
+            <HoldButton
               label="Hold Fade On / Off"
               active={holdFadeOnOff}
-              onChange={setHoldFadeOnOff}
+              onMouseDown={handleHoldFadeDown}
+              onMouseUp={handleHoldFadeUp}
+              onMouseLeave={handleHoldFadeUp}
             />
           </div>
 
-          {/* Right: Scrollable Effects List */}
+          {/* Right: Scrollable Effects */}
           <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
             {EFFECTS_CATEGORIES.map((cat) => (
               <div key={cat.category} className="mb-4 last:mb-0">
-                {/* Category header */}
                 <div className="px-2 py-1.5 mb-1.5">
                   <span className="text-[10px] font-semibold uppercase tracking-widest text-neutral-600">
                     {cat.label}
                   </span>
                 </div>
-
-                {/* Effect items */}
                 <div className="grid grid-cols-3 gap-1.5">
                   {cat.items.map((effect) => {
                     const isSelected = selectedEffect === effect.id
@@ -111,9 +82,7 @@ export function ControlPanel() {
                             ? 'bg-neutral-800/60 text-white border-neutral-600'
                             : 'text-neutral-500 border-transparent hover:text-neutral-300 hover:bg-neutral-800/30 hover:border-neutral-800'
                         }`}
-                        onClick={() =>
-                          setSelectedEffect(isSelected ? null : effect.id)
-                        }
+                        onClick={() => setSelectedEffect(isSelected ? null : effect.id)}
                         whileHover={{ scale: 1.01 }}
                         whileTap={{ scale: 0.98 }}
                       >
@@ -122,11 +91,7 @@ export function ControlPanel() {
                           <motion.div
                             className="absolute inset-0 rounded-lg border border-white/10 pointer-events-none"
                             layoutId="effect-selected"
-                            transition={{
-                              type: 'spring',
-                              stiffness: 400,
-                              damping: 30,
-                            }}
+                            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                           />
                         )}
                       </motion.button>
@@ -142,9 +107,24 @@ export function ControlPanel() {
   )
 }
 
-/* ─── Sub-components ─────────────────────────────────── */
+/* ─── Sub-components ──────────────────────────────── */
 
-function PanelTitle({ children }: { children: React.ReactNode }) {
+function PanelFrame({
+  title,
+  children,
+}: {
+  title: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="flex-1 rounded-xl border border-neutral-800/70 bg-neutral-950/50 overflow-hidden flex flex-col">
+      <PanelHeader>{title}</PanelHeader>
+      <div className="flex-1 flex items-center justify-center">{children}</div>
+    </div>
+  )
+}
+
+function PanelHeader({ children }: { children: React.ReactNode }) {
   return (
     <div className="h-8 flex items-center px-4 border-b border-neutral-800/50 flex-shrink-0">
       <span className="text-[12px] font-semibold tracking-wide text-neutral-300">
@@ -154,49 +134,51 @@ function PanelTitle({ children }: { children: React.ReactNode }) {
   )
 }
 
-function ToggleSwitch({
+function EmptyState() {
+  return <span className="text-[11px] text-neutral-700">Coming soon</span>
+}
+
+function HoldButton({
   label,
   active,
-  onChange,
+  onMouseDown,
+  onMouseUp,
+  onMouseLeave,
 }: {
   label: string
   active: boolean
-  onChange: (v: boolean) => void
+  onMouseDown: () => void
+  onMouseUp: () => void
+  onMouseLeave: () => void
 }) {
   return (
     <button
-      className="flex items-center gap-3 w-full px-1 py-2 rounded-lg hover:bg-neutral-800/20 transition-colors duration-150 group cursor-pointer"
-      onClick={() => onChange(!active)}
+      className={`relative flex items-center justify-center w-full px-3 py-3 rounded-lg border transition-all duration-150 select-none cursor-pointer ${
+        active
+          ? 'bg-red-500/15 border-red-500/40 text-white'
+          : 'bg-neutral-900/30 border-neutral-800 text-neutral-500 hover:border-neutral-700 hover:text-neutral-300'
+      }`}
+      onMouseDown={onMouseDown}
+      onMouseUp={onMouseUp}
+      onMouseLeave={onMouseLeave}
     >
-      {/* Toggle track */}
-      <div
-        className={`relative w-9 h-5 rounded-full transition-colors duration-200 flex-shrink-0 ${
-          active ? 'bg-red-500/80' : 'bg-neutral-800'
-        }`}
-      >
-        {/* Toggle thumb */}
+      {/* Glow when active */}
+      {active && (
         <motion.div
-          className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm"
-          animate={{ left: active ? '18px' : '2px' }}
-          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+          className="absolute inset-0 rounded-lg bg-red-500/5 pointer-events-none"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
         />
-      </div>
+      )}
 
-      {/* Label */}
-      <span
-        className={`text-[11px] font-medium transition-colors duration-150 ${
-          active ? 'text-neutral-200' : 'text-neutral-600'
-        }`}
-      >
-        {label}
-      </span>
+      <span className="text-[11px] font-medium">{label}</span>
 
       {/* O/X indicator */}
-      <span className="ml-auto text-[11px] font-bold">
+      <span className="ml-2 text-[11px] font-bold">
         {active ? (
           <span className="text-emerald-400">O</span>
         ) : (
-          <span className="text-red-500">X</span>
+          <span className="text-red-500/60">X</span>
         )}
       </span>
     </button>

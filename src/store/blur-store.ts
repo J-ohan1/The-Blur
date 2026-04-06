@@ -10,17 +10,19 @@ interface BlurState {
   // App phase: landing -> welcome -> main
   phase: 'landing' | 'welcome' | 'main'
 
+  // Navigation: which panel is active
+  activePanel: 'home' | 'control'
+
   // User info
   username: string
   isWhitelisted: boolean
   isTemporaryWhitelisted: boolean
-  headshotUrl: string
 
   // UI toggles
   showProfileDropdown: boolean
   showEasterEgg: boolean
 
-  // Easter egg: click version 3 times in 2 seconds
+  // Easter egg
   easterEggClicks: number
   lastEasterEggClick: number
 
@@ -28,39 +30,32 @@ interface BlurState {
   startTime: number
   timeSpent: number
 
-  // Control Panel toggles
-  masterOnOff: boolean
+  // Control Panel — hold button states (only true while mouse is held)
   holdOnOff: boolean
-  fadeOnOff: boolean
   holdFadeOnOff: boolean
 
   // Selected effect
   selectedEffect: string | null
 
-  // All effects
+  // Effects list
   effects: EffectItem[]
 
   // Actions
   enterPanel: () => void
+  setActivePanel: (panel: 'home' | 'control') => void
   toggleProfileDropdown: () => void
   closeProfileDropdown: () => void
   checkEasterEgg: () => void
   closeEasterEgg: () => void
   updateTimeSpent: () => void
   getTimeSpent: () => string
-
-  // Control Panel actions
-  setMasterOnOff: (v: boolean) => void
   setHoldOnOff: (v: boolean) => void
-  setFadeOnOff: (v: boolean) => void
   setHoldFadeOnOff: (v: boolean) => void
   setSelectedEffect: (id: string | null) => void
 }
 
 export const EFFECTS: EffectItem[] = [
-  // Strobe
   { id: 'strobe', name: 'Strobe', category: 'pattern' },
-  // Random
   { id: 'rand-individual', name: 'Random Individual', category: 'pattern' },
   { id: 'rand-fixture', name: 'Random Fixture', category: 'pattern' },
   // Waves (15)
@@ -105,98 +100,73 @@ export const EFFECTS: EffectItem[] = [
 ]
 
 export const useBlurStore = create<BlurState>((set, get) => ({
-  // Phase
   phase: 'landing',
+  activePanel: 'home',
 
-  // User
   username: 'Johan',
   isWhitelisted: true,
   isTemporaryWhitelisted: false,
-  headshotUrl: '',
 
-  // UI
   showProfileDropdown: false,
   showEasterEgg: false,
 
-  // Easter egg
   easterEggClicks: 0,
   lastEasterEggClick: 0,
 
-  // Time
   startTime: Date.now(),
   timeSpent: 0,
 
-  // Control Panel toggles
-  masterOnOff: true,
   holdOnOff: false,
-  fadeOnOff: false,
   holdFadeOnOff: false,
 
-  // Selected effect
   selectedEffect: null,
-
-  // Effects list
   effects: EFFECTS,
 
-  // Actions
   enterPanel: () => {
     set({ phase: 'welcome' })
     setTimeout(() => {
-      set({ phase: 'main', startTime: Date.now() })
+      set({ phase: 'main', activePanel: 'home', startTime: Date.now() })
     }, 2500)
   },
 
-  toggleProfileDropdown: () => {
-    set((s) => ({ showProfileDropdown: !s.showProfileDropdown }))
-  },
+  setActivePanel: (panel) => set({ activePanel: panel, showProfileDropdown: false }),
 
-  closeProfileDropdown: () => {
-    set({ showProfileDropdown: false })
-  },
+  toggleProfileDropdown: () => set((s) => ({ showProfileDropdown: !s.showProfileDropdown })),
+  closeProfileDropdown: () => set({ showProfileDropdown: false }),
 
   checkEasterEgg: () => {
     const now = Date.now()
     const { easterEggClicks, lastEasterEggClick } = get()
-    const timeDiff = now - lastEasterEggClick
-
-    if (timeDiff < 2000) {
-      const newCount = easterEggClicks + 1
-      if (newCount >= 3) {
+    if (now - lastEasterEggClick < 2000) {
+      const count = easterEggClicks + 1
+      if (count >= 3) {
         set({ showEasterEgg: true, easterEggClicks: 0, lastEasterEggClick: 0 })
       } else {
-        set({ easterEggClicks: newCount, lastEasterEggClick: now })
+        set({ easterEggClicks: count, lastEasterEggClick: now })
       }
     } else {
       set({ easterEggClicks: 1, lastEasterEggClick: now })
     }
   },
 
-  closeEasterEgg: () => {
-    set({ showEasterEgg: false })
-  },
+  closeEasterEgg: () => set({ showEasterEgg: false }),
 
   updateTimeSpent: () => {
     const { phase, startTime } = get()
-    if (phase === 'main') {
-      set({ timeSpent: Math.floor((Date.now() - startTime) / 1000) })
-    }
+    if (phase === 'main') set({ timeSpent: Math.floor((Date.now() - startTime) / 1000) })
   },
 
   getTimeSpent: () => {
     const { timeSpent } = get()
-    const hours = Math.floor(timeSpent / 3600)
-    const minutes = Math.floor((timeSpent % 3600) / 60)
-    const seconds = timeSpent % 60
-
-    if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`
-    if (minutes > 0) return `${minutes}m ${seconds}s`
-    return `${seconds}s`
+    const h = Math.floor(timeSpent / 3600)
+    const m = Math.floor((timeSpent % 3600) / 60)
+    const s = timeSpent % 60
+    if (h > 0) return `${h}h ${m}m ${s}s`
+    if (m > 0) return `${m}m ${s}s`
+    return `${s}s`
   },
 
-  // Control Panel actions
-  setMasterOnOff: (v) => set({ masterOnOff: v }),
   setHoldOnOff: (v) => set({ holdOnOff: v }),
-  setFadeOnOff: (v) => set({ fadeOnOff: v }),
   setHoldFadeOnOff: (v) => set({ holdFadeOnOff: v }),
   setSelectedEffect: (id) => set({ selectedEffect: id }),
 }))

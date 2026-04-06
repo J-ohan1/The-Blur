@@ -9,8 +9,10 @@ import { EasterEggPopup } from './EasterEggPopup'
 
 export function NavBar() {
   const {
+    activePanel,
     showProfileDropdown,
     showEasterEgg,
+    setActivePanel,
     toggleProfileDropdown,
     checkEasterEgg,
     closeEasterEgg,
@@ -52,6 +54,29 @@ export function NavBar() {
           </motion.button>
         </div>
 
+        {/* Center: Home + Control buttons */}
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1">
+          {(['Home', 'Control'] as const).map((item) => {
+            const isActive = activePanel === item.toLowerCase()
+            return (
+              <button
+                key={item}
+                className="relative px-4 py-2 text-[13px] font-medium text-neutral-500 hover:text-white transition-colors duration-200 cursor-pointer"
+                onClick={() => setActivePanel(item.toLowerCase() as 'home' | 'control')}
+              >
+                {item}
+                {isActive && (
+                  <motion.div
+                    className="absolute bottom-0 left-2 right-2 h-[2px] bg-white rounded-full"
+                    layoutId="nav-underline"
+                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                  />
+                )}
+              </button>
+            )
+          })}
+        </div>
+
         {/* Right: Headshot */}
         <div className="relative">
           <motion.button
@@ -76,7 +101,6 @@ export function NavBar() {
       <AnimatePresence>
         {showProfileDropdown && <ProfileDropdown />}
       </AnimatePresence>
-
       <AnimatePresence>
         {showEasterEgg && <EasterEggPopup onClose={closeEasterEgg} />}
       </AnimatePresence>
