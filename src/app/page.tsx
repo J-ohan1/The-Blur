@@ -11,6 +11,7 @@ import { PlayerPanel } from '@/components/blur/PlayerPanel'
 import { GroupPanel } from '@/components/blur/GroupPanel'
 import { CustomisationPanel } from '@/components/blur/CustomisationPanel'
 import { InfoPanel } from '@/components/blur/InfoPanel'
+import { EffectPanel } from '@/components/blur/EffectPanel'
 import { ToastContainer } from '@/components/blur/ToastContainer'
 
 export default function Page() {
@@ -33,6 +34,7 @@ export default function Page() {
               {activePanel === 'group' && <GroupPanel key="group" />}
               {activePanel === 'customisation' && <CustomisationPanel key="customisation" />}
               {activePanel === 'info' && <InfoPanel key="info" />}
+              {activePanel === 'effect' && <EffectPanel key="effect" />}
             </AnimatePresence>
           </div>
         )}

@@ -40,7 +40,7 @@ export interface FaderValue {
 interface BlurState {
   // App phase
   phase: 'landing' | 'welcome' | 'main'
-  activePanel: 'home' | 'control' | 'player' | 'group' | 'customisation' | 'info'
+  activePanel: 'home' | 'control' | 'player' | 'group' | 'customisation' | 'info' | 'effect'
 
   // Current user
   currentUser: PlayerData
@@ -94,7 +94,7 @@ interface BlurState {
 
   // Actions
   enterPanel: () => void
-  setActivePanel: (panel: 'home' | 'control' | 'player' | 'group' | 'customisation' | 'info') => void
+  setActivePanel: (panel: 'home' | 'control' | 'player' | 'group' | 'customisation' | 'info' | 'effect') => void
   toggleProfileDropdown: () => void
   closeProfileDropdown: () => void
   checkEasterEgg: () => void
@@ -572,7 +572,7 @@ export const useBlurStore = create<BlurState>((set, get) => ({
   setGroupNameInput: (v) => set({ groupNameInput: v }),
 
   saveGroup: () => {
-    const { editingGroupId, groupNameInput, groupMode, selectedFixtures, selectedBeams, groups, selectedGroupId } = get()
+    const { editingGroupId, groupNameInput, groupMode, selectedFixtures, selectedBeams, groups } = get()
     const validation = validateGroupName(groupNameInput)
     if (!validation.valid) { get().addToast(validation.reason, 'warning'); return }
 

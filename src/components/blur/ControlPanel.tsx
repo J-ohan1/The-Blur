@@ -4,6 +4,7 @@ import { useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { useBlurStore, type LaserGroup } from '@/store/blur-store'
 import { EFFECTS_CATEGORIES } from './effects-categories'
+import { useEffectEditorStore } from '@/store/effect-editor-store'
 
 export function ControlPanel() {
   const groups = useBlurStore((s) => s.groups)
@@ -47,9 +48,7 @@ export function ControlPanel() {
       {/* Top Row */}
       <div className="flex gap-3 h-[180px] flex-shrink-0">
         <CustomGroupPanel groups={groups} selectedGroupIds={selectedGroupIds} />
-        <PanelFrame title="Custom Effects">
-          <span className="text-[11px] text-neutral-700">Coming soon</span>
-        </PanelFrame>
+        <CustomEffectPanel />
       </div>
 
       {/* Bottom: Effects */}
@@ -266,6 +265,61 @@ function DirectionControl({
       >
         &gt;
       </button>
+    </div>
+  )
+}
+
+/* ─── Custom Effect Panel (Control view) ─────── */
+
+const TYPE_LABEL: Record<string, string> = {
+  movement: 'Mvm', pattern: 'Pat', chase: 'Chase',
+  strobe: 'Str', wave: 'Wav', custom: 'Cus',
+}
+
+function CustomEffectPanel() {
+  const savedEffects = useEffectEditorStore((s) => s.savedEffects)
+
+  if (savedEffects.length === 0) {
+    return (
+      <div className="flex-1 rounded-xl border border-neutral-800/70 bg-neutral-950/50 overflow-hidden flex flex-col">
+        <PanelHeader>Custom Effects</PanelHeader>
+        <div className="flex-1 flex flex-col items-center justify-center gap-2 px-4">
+          <motion.span
+            className="text-[11px] text-neutral-500"
+            animate={{ opacity: [0.3, 1, 0.3] }}
+            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            No custom effects yet
+          </motion.span>
+          <span className="text-[10px] text-neutral-700">
+            Create one in the Effect panel
+          </span>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex-1 rounded-xl border border-neutral-800/70 bg-neutral-950/50 overflow-hidden flex flex-col">
+      <PanelHeader>Custom Effects</PanelHeader>
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
+        {savedEffects.map((fx) => (
+          <div
+            key={fx.id}
+            className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-neutral-800/30 hover:bg-neutral-800/20 transition-colors cursor-default"
+          >
+            <span className="text-[11px] font-medium text-neutral-300 truncate flex-1">
+              {fx.name}
+            </span>
+            <span className="text-[9px] px-1.5 py-0.5 rounded bg-neutral-800/60 text-neutral-500 flex-shrink-0">
+              {TYPE_LABEL[fx.type] ?? fx.type}
+            </span>
+            <span className="text-[9px] px-1.5 py-0.5 rounded bg-neutral-800/40 text-neutral-600 flex-shrink-0">
+              {fx.frames.length}F
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
