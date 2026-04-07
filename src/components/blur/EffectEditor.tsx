@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   useEffectEditorStore,
@@ -587,32 +587,14 @@ export function EffectEditor() {
               exit={{ opacity: 0 }}
               onClick={() => setFrameCtx(null)}
             />
-            <motion.div
-              className="fixed z-[100] w-44 rounded-lg border border-neutral-800 bg-neutral-950/95 backdrop-blur-md p-1 shadow-xl"
-              style={{ left: frameCtx.x, top: frameCtx.y }}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-            >
-              <button
-                className="w-full px-3 py-2 text-[11px] text-neutral-300 hover:bg-neutral-800/50 hover:text-white rounded-md transition-colors cursor-pointer text-left"
-                onClick={() => { duplicateFrame(frameCtx.index); setFrameCtx(null) }}
-              >
-                Duplicate Frame
-              </button>
-              <button
-                className="w-full px-3 py-2 text-[11px] text-neutral-300 hover:bg-neutral-800/50 hover:text-white rounded-md transition-colors cursor-pointer text-left"
-                onClick={() => { insertFrameAfter(frameCtx.index); setFrameCtx(null) }}
-              >
-                Insert After
-              </button>
-              <button
-                className="w-full px-3 py-2 text-[11px] text-neutral-400 hover:bg-neutral-800/50 hover:text-red-400 rounded-md transition-colors cursor-pointer text-left"
-                onClick={() => { removeFrame(frameCtx.index); setFrameCtx(null) }}
-              >
-                Delete Frame
-              </button>
-            </motion.div>
+            <FrameContextMenu
+              x={frameCtx.x}
+              y={frameCtx.y}
+              index={frameCtx.index}
+              onDuplicate={(idx) => { duplicateFrame(idx); setFrameCtx(null) }}
+              onInsertAfter={(idx) => { insertFrameAfter(idx); setFrameCtx(null) }}
+              onRemove={(idx) => { removeFrame(idx); setFrameCtx(null) }}
+            />
           </>
         )}
       </AnimatePresence>
@@ -1031,5 +1013,68 @@ function Slider({
           disabled:opacity-40 disabled:cursor-not-allowed"
       />
     </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════
+   Viewport-aware Context Menu
+   ═══════════════════════════════════════════════════ */
+
+function FrameContextMenu({
+  x,
+  y,
+  index,
+  onDuplicate,
+  onInsertAfter,
+  onRemove,
+}: {
+  x: number
+  y: number
+  index: number
+  onDuplicate: (idx: number) => void
+  onInsertAfter: (idx: number) => void
+  onRemove: (idx: number) => void
+}) {
+  const menuHeight = 120 // approximate height of 3 menu items
+  const menuWidth = 176
+  const pos = useMemo(() => {
+    const vh = window.innerHeight
+    const vw = window.innerWidth
+    const flipY = y + menuHeight > vh
+    const flipX = x + menuWidth > vw
+    return {
+      left: flipX ? x - menuWidth : x,
+      top: flipY ? y - menuHeight : y,
+    }
+  }, [x, y])
+
+  return (
+    <motion.div
+      className="fixed z-[100] w-44 rounded-lg border border-neutral-800 bg-neutral-950/95 backdrop-blur-md p-1 shadow-xl"
+      style={{ left: pos.left, top: pos.top }}
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.12 }}
+    >
+      <button
+        className="w-full px-3 py-2 text-[11px] text-neutral-300 hover:bg-neutral-800/50 hover:text-white rounded-md transition-colors cursor-pointer text-left"
+        onClick={() => onDuplicate(index)}
+      >
+        Duplicate Frame
+      </button>
+      <button
+        className="w-full px-3 py-2 text-[11px] text-neutral-300 hover:bg-neutral-800/50 hover:text-white rounded-md transition-colors cursor-pointer text-left"
+        onClick={() => onInsertAfter(index)}
+      >
+        Insert After
+      </button>
+      <button
+        className="w-full px-3 py-2 text-[11px] text-neutral-400 hover:bg-neutral-800/50 hover:text-red-400 rounded-md transition-colors cursor-pointer text-left"
+        onClick={() => onRemove(index)}
+      >
+        Delete Frame
+      </button>
+    </motion.div>
   )
 }

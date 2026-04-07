@@ -49,7 +49,7 @@ function blankFrame(): EffectFrame {
   return { id: nextFrameId(), beams, duration: 200 }
 }
 
-function createInitialFrames(count = 30): EffectFrame[] {
+function createInitialFrames(count = 1): EffectFrame[] {
   return Array.from({ length: count }, () => blankFrame())
 }
 
@@ -152,7 +152,7 @@ interface EffectEditorState {
 
 export const useEffectEditorStore = create<EffectEditorState>((set, get) => ({
   effectPanelView: 'list',
-  frames: createInitialFrames(30),
+  frames: createInitialFrames(1),
   currentFrameIndex: 0,
   isPlaying: false,
   loop: true,
@@ -179,7 +179,7 @@ export const useEffectEditorStore = create<EffectEditorState>((set, get) => ({
   openEditor: (presetData) => {
     const frames = presetData
       ? JSON.parse(JSON.stringify(presetData.frames))
-      : createInitialFrames(30)
+      : createInitialFrames(1)
     set({
       effectPanelView: 'editor',
       frames,
@@ -197,7 +197,12 @@ export const useEffectEditorStore = create<EffectEditorState>((set, get) => ({
 
   addFrame: () => {
     set((s) => {
-      const newFrame = blankFrame()
+      // Duplicate the last frame
+      const lastFrame = s.frames[s.frames.length - 1]
+      const newFrame: EffectFrame = {
+        ...JSON.parse(JSON.stringify(lastFrame)),
+        id: nextFrameId(),
+      }
       const frames = [...s.frames, newFrame]
       return {
         frames,

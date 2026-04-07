@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   useBlurStore,
@@ -260,6 +260,19 @@ function ContextMenu({
   onDelete: () => void
   onClose: () => void
 }) {
+  const menuHeight = 80 // approximate height of 2 menu items
+  const menuWidth = 160
+  const pos = useMemo(() => {
+    const vh = window.innerHeight
+    const vw = window.innerWidth
+    const flipY = y + menuHeight > vh
+    const flipX = x + menuWidth > vw
+    return {
+      left: flipX ? x - menuWidth : x,
+      top: flipY ? y - menuHeight : y,
+    }
+  }, [x, y])
+
   return (
     <>
       <motion.div
@@ -271,7 +284,7 @@ function ContextMenu({
       />
       <motion.div
         className="fixed z-[100] w-40 rounded-lg border border-neutral-800 bg-neutral-950/95 backdrop-blur-md p-1 shadow-xl"
-        style={{ left: x, top: y }}
+        style={{ left: pos.left, top: pos.top }}
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}

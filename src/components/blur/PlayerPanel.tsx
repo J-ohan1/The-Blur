@@ -173,9 +173,10 @@ function PlayerCard({
       {/* Action Buttons */}
       <div className="flex gap-1.5 px-4 pb-3">
         <ActionButton
-          label="Whitelist"
+          label={player.role === 'blacklisted' ? 'Temp WL' : 'Whitelist'}
           active={activeButtons.whitelist && wlCheck.allowed}
           onClick={onWhitelist}
+          variant={player.role === 'blacklisted' ? 'warn' : 'default'}
         />
         <ActionButton
           label="Remove"
@@ -186,6 +187,7 @@ function PlayerCard({
           label="Kick"
           active={activeButtons.kick && kickCheck.allowed}
           onClick={onKick}
+          variant="danger"
         />
       </div>
     </motion.div>
@@ -196,18 +198,28 @@ function ActionButton({
   label,
   active,
   onClick,
+  variant = 'default',
 }: {
   label: string
   active: boolean
   onClick: () => void
+  variant?: 'default' | 'warn' | 'danger'
 }) {
+  const variantStyles = variant === 'warn'
+    ? active
+      ? 'bg-yellow-900/30 border-yellow-700/60 text-yellow-300 hover:bg-yellow-900/40'
+      : 'bg-neutral-900/20 border-neutral-800/40 text-neutral-700'
+    : variant === 'danger'
+      ? active
+        ? 'bg-red-900/20 border-red-800/50 text-red-300 hover:bg-red-900/30'
+        : 'bg-neutral-900/20 border-neutral-800/40 text-neutral-700'
+      : active
+        ? 'bg-neutral-800/40 border-neutral-700 text-neutral-200 hover:bg-neutral-700/40'
+        : 'bg-neutral-900/20 border-neutral-800/40 text-neutral-700'
+
   return (
     <button
-      className={`flex-1 py-1.5 rounded-lg border text-[11px] font-medium transition-colors duration-150 cursor-pointer ${
-        active
-          ? 'bg-neutral-800/40 border-neutral-700 text-neutral-200 hover:bg-neutral-700/40'
-          : 'bg-neutral-900/20 border-neutral-800/40 text-neutral-700'
-      }`}
+      className={`flex-1 py-1.5 rounded-lg border text-[11px] font-medium transition-colors duration-150 cursor-pointer ${variantStyles}`}
       onClick={onClick}
       disabled={!active}
     >

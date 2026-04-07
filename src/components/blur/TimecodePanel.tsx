@@ -696,6 +696,19 @@ function TimelineGrid({
 
   // Track whether we're actively resizing for cursor style
   const [isResizing, setIsResizing] = useState(false)
+  const [hoveredCell, setHoveredCell] = useState<string | null>(null) // "groupId-col" format
+
+  // Prevent text selection globally during drag/resize operations
+  useEffect(() => {
+    if (!isDragging && !isResizing) return
+
+    const preventSelect = (e: Event) => e.preventDefault()
+    document.addEventListener('selectstart', preventSelect)
+
+    return () => {
+      document.removeEventListener('selectstart', preventSelect)
+    }
+  }, [isDragging, isResizing])
 
   // Handle resize mouse events globally
   useEffect(() => {
@@ -760,6 +773,15 @@ function TimelineGrid({
     e.dataTransfer.dropEffect = 'copy'
   }, [])
 
+  const handleDragEnter = useCallback((e: React.DragEvent, groupId: string, col: number) => {
+    e.preventDefault()
+    setHoveredCell(`${groupId}-${col}`)
+  }, [])
+
+  const handleDragLeave = useCallback(() => {
+    setHoveredCell(null)
+  }, [])
+
   const handleResizeStart = useCallback((
     e: React.MouseEvent,
     groupId: string,
@@ -807,9 +829,8 @@ function TimelineGrid({
 
   return (
     <div
-      className="h-full flex flex-col"
+      className="h-full flex flex-col select-none"
       style={{
-        userSelect: isDragging || isResizing ? 'none' : 'auto',
         cursor: isResizing ? 'ew-resize' : undefined,
       }}
     >
@@ -912,6 +933,7 @@ function TimelineGrid({
 
                 const cell = track.cells[i]
                 const isPlayhead = timecodePlaying && timecodeCurrentStep === i
+                const isHovered = hoveredCell === `${track.groupId}-${i}`
 
                 // Don't render individual cell if it's part of a spanning block
                 if (cell && (cell.duration || 1) > 1 && cell) {
@@ -922,10 +944,12 @@ function TimelineGrid({
                   <div
                     key={i}
                     className={`flex-shrink-0 border-b border-r border-neutral-800/15 absolute transition-colors ${
-                      isPlayhead ? 'bg-neutral-800/20' : 'hover:bg-neutral-900/40'
+                      isPlayhead ? 'bg-neutral-800/20' : isHovered && !cell ? 'bg-neutral-700/30' : 'hover:bg-neutral-900/40'
                     }`}
                     style={{ width: COL_WIDTH, height: ROW_HEIGHT, left: i * COL_WIDTH }}
                     onDragOver={handleDragOver}
+                    onDragEnter={(e) => handleDragEnter(e, track.groupId, i)}
+                    onDragLeave={handleDragLeave}
                     onDrop={(e) => handleDrop(e, track.groupId, i)}
                   >
                     {/* Playhead indicator */}
@@ -1099,10 +1123,10 @@ function CellBadge({
       {/* Resize handle (right edge) */}
       {onResizeStart && (
         <div
-          className="absolute top-0 right-0 bottom-0 w-2 cursor-ew-resize z-10 flex items-center justify-center hover:bg-white/10 transition-colors"
+          className="absolute top-0 right-0 bottom-0 w-3 cursor-ew-resize z-10 flex items-center justify-center hover:bg-white/15 transition-colors group/resize"
           onMouseDown={onResizeStart}
         >
-          <div className="w-[1px] h-3/5 bg-neutral-600 rounded-full" />
+          <div className="w-[2px] h-3/5 bg-neutral-600 rounded-full group-hover/resize:bg-white transition-colors" />
         </div>
       )}
 
