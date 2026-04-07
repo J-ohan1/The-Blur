@@ -65,10 +65,32 @@ export interface Keybind {
   category: 'toggle' | 'effect' | 'position' | 'custom'
 }
 
+export interface TimecodeCell {
+  id: string
+  type: 'effect' | 'toggle' | 'position' | 'wait'
+  action: string
+  label: string
+  waitMultiplier: number // 1 = 1 beat, 0.5 = half, 2 = double
+}
+
+export interface TimecodeTrack {
+  groupId: string
+  groupName: string
+  cells: Record<number, TimecodeCell>
+}
+
+export interface SavedTimecode {
+  id: string
+  name: string
+  bpm: number
+  tracks: TimecodeTrack[]
+  createdAt: number
+}
+
 interface BlurState {
   // App phase
   phase: 'landing' | 'welcome' | 'main'
-  activePanel: 'home' | 'control' | 'player' | 'group' | 'customisation' | 'info' | 'effect' | 'hub' | 'keybind'
+  activePanel: 'home' | 'control' | 'player' | 'group' | 'customisation' | 'info' | 'effect' | 'hub' | 'keybind' | 'timecode'
 
   // Current user
   currentUser: PlayerData
@@ -126,6 +148,13 @@ interface BlurState {
   // Keybinds
   keybinds: Keybind[]
   keybindListeningId: string | null  // ID of keybind currently listening for a key press
+
+  // Timecode
+  timecodeProjects: SavedTimecode[]
+  activeTimecodeId: string | null
+  timecodePlaying: boolean
+  timecodeCurrentStep: number
+  timecodeTimer: ReturnType<typeof setTimeout> | null
 
   // Customisation panel
   customisation: {
@@ -203,6 +232,19 @@ interface BlurState {
   startListening: (id: string) => void
   stopListening: () => void
   getKeybindByAction: (action: string) => Keybind | undefined
+
+  // Timecode
+  createTimecode: (name: string) => void
+  deleteTimecode: (id: string) => void
+  loadTimecode: (id: string) => void
+  setTimecodeBpm: (bpm: number) => void
+  setTimecodeName: (name: string) => void
+  addTimecodeEntry: (groupId: string, col: number, entry: Omit<TimecodeCell, 'id'>) => void
+  removeTimecodeEntry: (groupId: string, col: number) => void
+  cycleWaitMultiplier: (groupId: string, col: number) => void
+  playTimecode: () => void
+  stopTimecode: () => void
+  getActiveTimecode: () => SavedTimecode | undefined
 }
 
 /* ─── Role helpers ───────────────────────────────── */
@@ -448,6 +490,13 @@ export const useBlurStore = create<BlurState>((set, get) => ({
   // Keybinds
   keybinds: [],
   keybindListeningId: null,
+
+  // Timecode
+  timecodeProjects: [],
+  activeTimecodeId: null,
+  timecodePlaying: false,
+  timecodeCurrentStep: -1,
+  timecodeTimer: null,
 
   // UI
   showProfileDropdown: false,
@@ -852,5 +901,208 @@ export const useBlurStore = create<BlurState>((set, get) => ({
 
   getKeybindByAction: (action) => {
     return get().keybinds.find((k) => k.action === action)
+  },
+
+  // Timecode
+  createTimecode: (name) => {
+    const { groups } = get()
+    if (groups.length === 0) { get().addToast('No groups. Create a group first.', 'warning'); return }
+    const tracks: TimecodeTrack[] = groups.map((g) => ({
+      groupId: g.id,
+      groupName: g.name,
+      cells: {},
+    }))
+    const project: SavedTimecode = {
+      id: `tc-${Date.now()}`,
+      name: name.trim(),
+      bpm: 120,
+      tracks,
+      createdAt: Date.now(),
+    }
+    set((s) => ({
+      timecodeProjects: [...s.timecodeProjects, project],
+      activeTimecodeId: project.id,
+      timecodePlaying: false,
+      timecodeCurrentStep: -1,
+    }))
+    get().addToast(`Timecode "${project.name}" created`, 'success')
+  },
+
+  deleteTimecode: (id) => {
+    const project = get().timecodeProjects.find((p) => p.id === id)
+    const { timecodeTimer } = get()
+    if (timecodeTimer) clearTimeout(timecodeTimer)
+    set((s) => ({
+      timecodeProjects: s.timecodeProjects.filter((p) => p.id !== id),
+      activeTimecodeId: s.activeTimecodeId === id ? null : s.activeTimecodeId,
+      timecodePlaying: false,
+      timecodeCurrentStep: -1,
+      timecodeTimer: null,
+    }))
+    if (project) get().addToast(`Timecode "${project.name}" deleted`, 'success')
+  },
+
+  loadTimecode: (id) => {
+    const { timecodeTimer } = get()
+    if (timecodeTimer) clearTimeout(timecodeTimer)
+    set({ activeTimecodeId: id, timecodePlaying: false, timecodeCurrentStep: -1, timecodeTimer: null })
+  },
+
+  setTimecodeBpm: (bpm) => {
+    const { activeTimecodeId } = get()
+    if (!activeTimecodeId) return
+    set((s) => ({
+      timecodeProjects: s.timecodeProjects.map((p) =>
+        p.id === activeTimecodeId ? { ...p, bpm: Math.max(20, Math.min(999, bpm)) } : p
+      ),
+    }))
+  },
+
+  setTimecodeName: (name) => {
+    const { activeTimecodeId } = get()
+    if (!activeTimecodeId) return
+    set((s) => ({
+      timecodeProjects: s.timecodeProjects.map((p) =>
+        p.id === activeTimecodeId ? { ...p, name: name.trim() } : p
+      ),
+    }))
+  },
+
+  addTimecodeEntry: (groupId, col, entry) => {
+    const { activeTimecodeId } = get()
+    if (!activeTimecodeId) return
+    const cell: TimecodeCell = {
+      ...entry,
+      id: `tcell-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      waitMultiplier: entry.type === 'wait' ? 1 : 0,
+    }
+    set((s) => ({
+      timecodeProjects: s.timecodeProjects.map((p) =>
+        p.id === activeTimecodeId
+          ? {
+              ...p,
+              tracks: p.tracks.map((t) =>
+                t.groupId === groupId
+                  ? { ...t, cells: { ...t.cells, [col]: cell } }
+                  : t
+              ),
+            }
+          : p
+      ),
+    }))
+  },
+
+  removeTimecodeEntry: (groupId, col) => {
+    const { activeTimecodeId } = get()
+    if (!activeTimecodeId) return
+    set((s) => ({
+      timecodeProjects: s.timecodeProjects.map((p) =>
+        p.id === activeTimecodeId
+          ? {
+              ...p,
+              tracks: p.tracks.map((t) => {
+                if (t.groupId !== groupId) return t
+                const newCells = { ...t.cells }
+                delete newCells[col]
+                return { ...t, cells: newCells }
+              }),
+            }
+          : p
+      ),
+    }))
+  },
+
+  cycleWaitMultiplier: (groupId, col) => {
+    const { activeTimecodeId } = get()
+    if (!activeTimecodeId) return
+    const multipliers = [0.25, 0.5, 1, 2, 4]
+    set((s) => ({
+      timecodeProjects: s.timecodeProjects.map((p) =>
+        p.id === activeTimecodeId
+          ? {
+              ...p,
+              tracks: p.tracks.map((t) => {
+                if (t.groupId !== groupId) return t
+                const cell = t.cells[col]
+                if (!cell || cell.type !== 'wait') return t
+                const idx = multipliers.indexOf(cell.waitMultiplier)
+                const next = multipliers[(idx + 1) % multipliers.length]
+                return {
+                  ...t,
+                  cells: { ...t.cells, [col]: { ...cell, waitMultiplier: next } },
+                }
+              }),
+            }
+          : p
+      ),
+    }))
+  },
+
+  playTimecode: () => {
+    const { activeTimecodeId, timecodeProjects, timecodeTimer, timecodePlaying } = get()
+    if (timecodeTimer) clearTimeout(timecodeTimer)
+    if (!activeTimecodeId) { get().addToast('No timecode selected', 'warning'); return }
+    const project = timecodeProjects.find((p) => p.id === activeTimecodeId)
+    if (!project) return
+
+    if (timecodePlaying) {
+      set({ timecodePlaying: false, timecodeCurrentStep: -1, timecodeTimer: null })
+      return
+    }
+
+    let maxCol = 0
+    for (const track of project.tracks) {
+ const cols = Object.keys(track.cells).map(Number)
+      if (cols.length > 0) maxCol = Math.max(maxCol, ...cols)
+    }
+    if (maxCol === 0) { get().addToast('No entries to play', 'warning'); return }
+
+    const stepMs = 60000 / project.bpm
+    let currentStep = 0
+
+    set({ timecodePlaying: true, timecodeCurrentStep: 0 })
+
+    const playNext = () => {
+      const proj = get().timecodeProjects.find((p) => p.id === activeTimecodeId)
+      if (!proj || !get().timecodePlaying) {
+        set({ timecodePlaying: false, timecodeCurrentStep: -1, timecodeTimer: null })
+        return
+      }
+
+      set({ timecodeCurrentStep: currentStep })
+
+      let waitMs = 0
+      for (const track of proj.tracks) {
+        const cell = track.cells[currentStep]
+        if (cell?.type === 'wait') {
+          waitMs = Math.max(waitMs, cell.waitMultiplier * stepMs)
+        }
+      }
+
+      currentStep++
+      const delay = waitMs > 0 ? waitMs : stepMs
+      if (currentStep > maxCol) {
+        const timer = setTimeout(() => {
+          set({ timecodePlaying: false, timecodeCurrentStep: -1, timecodeTimer: null })
+        }, delay)
+        set({ timecodeTimer: timer })
+        return
+      }
+      const timer = setTimeout(playNext, delay)
+      set({ timecodeTimer: timer })
+    }
+
+    playNext()
+  },
+
+  stopTimecode: () => {
+    const { timecodeTimer } = get()
+    if (timecodeTimer) clearTimeout(timecodeTimer)
+    set({ timecodePlaying: false, timecodeCurrentStep: -1, timecodeTimer: null })
+  },
+
+  getActiveTimecode: () => {
+    const { activeTimecodeId, timecodeProjects } = get()
+    return timecodeProjects.find((p) => p.id === activeTimecodeId)
   },
 }))
