@@ -761,6 +761,7 @@ function ColorWheel({
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const brightnessRef = useRef<HTMLCanvasElement>(null)
+  const isDraggingBrightness = useRef(false)
   const hsvRef = useRef({ h: 0, s: 0, v: 1 })
 
   /* Sync ref when color prop changes */

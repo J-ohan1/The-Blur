@@ -177,7 +177,7 @@ function EffectCard({
   index: number
   confirmDeleteId: string | null
   onEdit: () => void
-  onDelete: () => void
+  onDelete: (id: string, name: string) => void
   onLoadPreset: () => void
 }) {
   const isDeleting = confirmDeleteId === effect.id
@@ -222,7 +222,7 @@ function EffectCard({
             className={`px-2 py-1 text-[10px] rounded transition-colors cursor-pointer ${
               isDeleting ? 'text-red-400 hover:text-red-300' : 'text-neutral-600 hover:text-red-400'
             }`}
-            onClick={(e) => { e.stopPropagation(); onDelete() }}
+            onClick={(e) => { e.stopPropagation(); onDelete(effect.id, effect.name) }}
           >
             {isDeleting ? 'Confirm?' : 'Delete'}
           </button>

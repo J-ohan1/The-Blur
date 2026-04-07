@@ -1,5 +1,5 @@
 import { EFFECTS } from '@/store/blur-store'
-import type { SavedCustomEffect, BeamFrameState, EffectFrame } from '@/store/effect-editor-store'
+import type { SavedCustomEffect, BeamFrameState, EffectFrame, EffectType } from '@/store/effect-editor-store'
 
 /* ─── Helpers ───────────────────────────────────── */
 

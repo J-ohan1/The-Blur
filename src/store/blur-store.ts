@@ -225,7 +225,6 @@ export function canPerform(
   if (viewerRole === 'hardcoded_whitelist') {
     if (targetRole === 'staff') return { allowed: false, reason: "Can't perform actions on staff" }
     if (targetRole === 'hardcoded_whitelist') return { allowed: false, reason: "Can't perform actions on whitelisted users" }
-    if (action === 'remove' && targetRole === 'hardcoded_whitelist') return { allowed: false, reason: "Can't remove whitelisted users" }
     return { allowed: true, reason: '' }
   }
   return { allowed: false, reason: 'Lack of authorities' }
@@ -362,7 +361,7 @@ const MOCK_HUB_EFFECTS: HubEffect[] = [
   { id: 'hub-13', name: 'Cosmic Dust', authorName: 'StarLight', authorId: '11', type: 'pattern', tags: ['pattern', 'sparkle'], downloads: 134, codeLines: ['dust.cosmic()'], createdAt: Date.now() - 86400000 * 5 },
   { id: 'hub-14', name: 'Vortex Spin', authorName: 'BlueFlame', authorId: '12', type: 'movement', tags: ['movement', 'vortex'], downloads: 298, codeLines: ['spin.vortex(720)'], createdAt: Date.now() - 86400000 * 2 },
   { id: 'hub-15', name: 'Pixel Storm', authorName: 'CoolBuilder', authorId: '8', type: 'strobe', tags: ['strobe', 'random'], downloads: 176, codeLines: ['random.pixel()'], createdAt: Date.now() - 86400000 * 4 },
-  { id: 'hub-16', name: 'Sunset Fade', authorName: 'NightOwl', authorId: '4', type: 'color', tags: ['color', 'fade', 'warm'], downloads: 145, codeLines: ['color.sunset(30)'], createdAt: Date.now() - 86400000 * 7 },
+  { id: 'hub-16', name: 'Sunset Fade', authorName: 'NightOwl', authorId: '4', type: 'custom', tags: ['color', 'fade', 'warm'], downloads: 145, codeLines: ['color.sunset(30)'], createdAt: Date.now() - 86400000 * 7 },
 ]
 
 /* ─── Mock players ───────────────────────────────── */
