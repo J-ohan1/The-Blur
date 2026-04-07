@@ -390,9 +390,9 @@ function HubEffectCard({
           </span>
         </div>
 
-        {/* Add button */}
+        {/* Add button — z-10 keeps it above the hover code preview overlay */}
         <motion.button
-          className={`px-3 py-1 rounded-md text-[10px] font-medium border transition-all duration-200 cursor-pointer ${
+          className={`relative z-10 px-3 py-1 rounded-md text-[10px] font-medium border transition-all duration-200 cursor-pointer ${
             added
               ? 'bg-neutral-800/40 border-neutral-700/50 text-neutral-600'
               : 'bg-white text-black border-transparent hover:bg-neutral-200'
