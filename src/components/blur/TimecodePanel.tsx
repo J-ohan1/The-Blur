@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef, useMemo } from 'react'
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   useBlurStore,
@@ -16,6 +16,7 @@ const COL_WIDTH = 72
 const ROW_HEIGHT = 34
 const GROUP_LABEL_WIDTH = 96
 const DEFAULT_COLS = 24
+const MIN_BLOCK_WIDTH = 20 // minimum pixel width for resize handle detection
 
 const TOGGLE_ITEMS = [
   { type: 'toggle' as const, action: 'toggle-master', label: 'On / Off' },
@@ -39,6 +40,9 @@ export function TimecodePanel() {
   const [showNewDialog, setShowNewDialog] = useState(false)
   const [newName, setNewName] = useState('')
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+
+  // Global drag state to prevent text selection
+  const [isDragging, setIsDragging] = useState(false)
 
   const activeProject = useMemo(
     () => timecodeProjects.find((p) => p.id === activeTimecodeId),
@@ -73,7 +77,10 @@ export function TimecodePanel() {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.4, delay: 0.15 }}
-      style={{ fontFamily: 'var(--font-inter)' }}
+      style={{
+        fontFamily: 'var(--font-inter)',
+        userSelect: isDragging ? 'none' : 'auto',
+      }}
     >
       {/* ── Top row: 2 frames ── */}
       <div className="flex gap-2 h-[38%] flex-shrink-0 min-h-0">
@@ -101,6 +108,8 @@ export function TimecodePanel() {
         <Sidebar
           positions={useBlurStore((s) => s.positions)}
           disabled={!activeProject}
+          onDragStart={() => setIsDragging(true)}
+          onDragEnd={() => setIsDragging(false)}
         />
       </div>
 
@@ -109,6 +118,8 @@ export function TimecodePanel() {
         <TimelineGrid
           project={activeProject}
           groups={groups}
+          isDragging={isDragging}
+          onDraggingChange={setIsDragging}
         />
       </div>
     </motion.div>
@@ -362,9 +373,13 @@ function SavedList({
 function Sidebar({
   positions,
   disabled,
+  onDragStart,
+  onDragEnd,
 }: {
   positions: { id: string; name: string }[]
   disabled: boolean
+  onDragStart: () => void
+  onDragEnd: () => void
 }) {
   const [expanded, setExpanded] = useState<Set<string>>(
     new Set(['effects', 'toggles', 'positions', 'special'])
@@ -407,6 +422,8 @@ function Sidebar({
               label={fx.name}
               colorClass="text-neutral-400 hover:text-neutral-200"
               disabled={disabled}
+              onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
             />
           ))}
         </SidebarSection>
@@ -427,6 +444,8 @@ function Sidebar({
               label={item.label}
               colorClass="text-neutral-500 hover:text-neutral-200"
               disabled={disabled}
+              onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
             />
           ))}
         </SidebarSection>
@@ -452,6 +471,8 @@ function Sidebar({
                 label={pos.name}
                 colorClass="text-neutral-300 hover:text-neutral-100"
                 disabled={disabled}
+                onDragStart={onDragStart}
+                onDragEnd={onDragEnd}
               />
             ))
           )}
@@ -471,6 +492,8 @@ function Sidebar({
             label="Wait (1 beat)"
             colorClass="text-neutral-600 hover:text-neutral-300"
             disabled={disabled}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
           />
         </SidebarSection>
       </div>
@@ -530,12 +553,16 @@ function DragItem({
   label,
   colorClass,
   disabled,
+  onDragStart: notifyDragStart,
+  onDragEnd: notifyDragEnd,
 }: {
   type: TimecodeCell['type']
   action: string
   label: string
   colorClass: string
   disabled: boolean
+  onDragStart: () => void
+  onDragEnd: () => void
 }) {
   const handleDragStart = useCallback(
     (e: React.DragEvent) => {
@@ -543,14 +570,23 @@ function DragItem({
       const payload: DragPayload = { type, action, label }
       e.dataTransfer.setData('application/json', JSON.stringify(payload))
       e.dataTransfer.effectAllowed = 'copy'
+      // Set a minimal drag image to prevent default ghost behavior issues
+      const el = e.currentTarget as HTMLElement
+      e.dataTransfer.setDragImage(el, 0, 0)
+      notifyDragStart()
     },
-    [disabled, type, action, label]
+    [disabled, type, action, label, notifyDragStart]
   )
+
+  const handleDragEnd = useCallback(() => {
+    notifyDragEnd()
+  }, [notifyDragEnd])
 
   return (
     <div
-      draggable
+      draggable={!disabled}
       onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
       className={`px-2 py-1 rounded text-[10px] font-medium transition-colors cursor-grab active:cursor-grabbing select-none ${colorClass} ${
         disabled ? 'opacity-30 cursor-not-allowed' : 'hover:bg-neutral-800/30'
       }`}
@@ -567,28 +603,182 @@ function DragItem({
 function TimelineGrid({
   project,
   groups,
+  isDragging,
+  onDraggingChange,
 }: {
   project: SavedTimecode | undefined
   groups: { id: string; name: string }[]
+  isDragging: boolean
+  onDraggingChange: (v: boolean) => void
 }) {
   const timecodePlaying = useBlurStore((s) => s.timecodePlaying)
   const timecodeCurrentStep = useBlurStore((s) => s.timecodeCurrentStep)
   const addTimecodeEntry = useBlurStore((s) => s.addTimecodeEntry)
   const removeTimecodeEntry = useBlurStore((s) => s.removeTimecodeEntry)
   const cycleWaitMultiplier = useBlurStore((s) => s.cycleWaitMultiplier)
+  const resizeTimecodeEntry = useBlurStore((s) => s.resizeTimecodeEntry)
 
   const scrollRef = useRef<HTMLDivElement>(null)
+  const resizingRef = useRef<{ groupId: string; col: number; startDuration: number; startX: number } | null>(null)
 
-  // Calculate columns
+  // ── All hooks must be before any early returns ──
+
+  // Calculate columns accounting for duration
   const displayCols = useMemo(() => {
     if (!project) return DEFAULT_COLS
     let maxCol = 0
     for (const track of project.tracks) {
-      const cols = Object.keys(track.cells).map(Number)
-      if (cols.length > 0) maxCol = Math.max(maxCol, ...cols)
+      for (const [colStr, cell] of Object.entries(track.cells)) {
+        const col = Number(colStr)
+        const endCol = col + (cell.duration || 1) - 1
+        if (endCol > maxCol) maxCol = endCol
+      }
     }
     return Math.max(DEFAULT_COLS, maxCol + 4)
   }, [project])
+
+  // Build a set of occupied columns per track for collision avoidance
+  const occupiedColsMap = useMemo(() => {
+    const map: Record<string, Set<number>> = {}
+    if (!project) return map
+    for (const track of project.tracks) {
+      const occupied = new Set<number>()
+      for (const [colStr, cell] of Object.entries(track.cells)) {
+        const startCol = Number(colStr)
+        const dur = cell.duration || 1
+        for (let c = startCol; c < startCol + dur; c++) {
+          occupied.add(c)
+        }
+      }
+      map[track.groupId] = occupied
+    }
+    return map
+  }, [project])
+
+  // For each track, compute the cells to render (skipping covered columns)
+  const trackCellData = useMemo(() => {
+    if (!project) return []
+    const result: Array<{
+      track: TimecodeTrack
+      items: Array<{
+        startCol: number
+        cell: TimecodeCell
+        key: number
+      }>
+    }> = []
+
+    for (const track of project.tracks) {
+      const items: typeof result[0]['items'] = []
+      const visited = new Set<number>()
+
+      for (const [colStr, cell] of Object.entries(track.cells)) {
+        const startCol = Number(colStr)
+        if (visited.has(startCol)) continue
+
+        const dur = cell.duration || 1
+        for (let c = startCol; c < startCol + dur; c++) {
+          visited.add(c)
+        }
+
+        items.push({
+          startCol,
+          cell,
+          key: startCol,
+        })
+      }
+
+      items.sort((a, b) => a.startCol - b.startCol)
+      result.push({ track, items })
+    }
+
+    return result
+  }, [project])
+
+  // Track whether we're actively resizing for cursor style
+  const [isResizing, setIsResizing] = useState(false)
+
+  // Handle resize mouse events globally
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!resizingRef.current) return
+      const { groupId, col, startDuration, startX } = resizingRef.current
+      const deltaX = e.clientX - startX
+      const deltaCols = Math.round(deltaX / COL_WIDTH)
+      const newDuration = Math.max(1, startDuration + deltaCols)
+      resizeTimecodeEntry(groupId, col, newDuration)
+    }
+
+    const handleMouseUp = () => {
+      if (resizingRef.current) {
+        resizingRef.current = null
+        onDraggingChange(false)
+        setIsResizing(false)
+      }
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [resizeTimecodeEntry, onDraggingChange])
+
+  // ── Event handlers (stable callbacks) ──
+
+  const handleDrop = useCallback((e: React.DragEvent, groupId: string, col: number) => {
+    e.preventDefault()
+    onDraggingChange(false)
+    try {
+      const raw = e.dataTransfer.getData('application/json')
+      if (!raw) return
+      const payload: DragPayload = JSON.parse(raw)
+      const occupied = useBlurStore.getState().timecodeProjects
+        .find((p) => p.id === useBlurStore.getState().activeTimecodeId)
+        ?.tracks.find((t) => t.groupId === groupId)
+      if (!occupied) return
+      // Check if col is occupied
+      for (const [colStr, cell] of Object.entries(occupied.cells)) {
+        const startCol = Number(colStr)
+        const dur = cell.duration || 1
+        if (col >= startCol && col < startCol + dur) return
+      }
+      addTimecodeEntry(groupId, col, {
+        type: payload.type,
+        action: payload.action,
+        label: payload.label,
+      })
+    } catch {
+      // Ignore invalid drag data
+    }
+  }, [onDraggingChange, addTimecodeEntry])
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    e.dataTransfer.dropEffect = 'copy'
+  }, [])
+
+  const handleResizeStart = useCallback((
+    e: React.MouseEvent,
+    groupId: string,
+    col: number,
+    currentDuration: number
+  ) => {
+    e.preventDefault()
+    e.stopPropagation()
+    resizingRef.current = {
+      groupId,
+      col,
+      startDuration: currentDuration,
+      startX: e.clientX,
+    }
+    onDraggingChange(true)
+    setIsResizing(true)
+  }, [onDraggingChange])
+
+  // ── Conditional renders ──
 
   if (!project) {
     return (
@@ -615,29 +805,14 @@ function TimelineGrid({
     )
   }
 
-  const handleDrop = (e: React.DragEvent, groupId: string, col: number) => {
-    e.preventDefault()
-    try {
-      const raw = e.dataTransfer.getData('application/json')
-      if (!raw) return
-      const payload: DragPayload = JSON.parse(raw)
-      addTimecodeEntry(groupId, col, {
-        type: payload.type,
-        action: payload.action,
-        label: payload.label,
-      })
-    } catch {
-      // Ignore invalid drag data
-    }
-  }
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'copy'
-  }
-
   return (
-    <div className="h-full flex flex-col">
+    <div
+      className="h-full flex flex-col"
+      style={{
+        userSelect: isDragging || isResizing ? 'none' : 'auto',
+        cursor: isResizing ? 'ew-resize' : undefined,
+      }}
+    >
       {/* Grid header bar */}
       <div className="h-7 flex items-center px-3 border-b border-neutral-800/50 flex-shrink-0 justify-between">
         <span className="text-[12px] font-semibold tracking-wide text-neutral-300">
@@ -698,7 +873,7 @@ function TimelineGrid({
         </div>
 
         {/* Tracks */}
-        {project.tracks.map((track) => (
+        {trackCellData.map(({ track, items }) => (
           <div key={track.groupId} className="flex">
             {/* Group label */}
             <div
@@ -712,46 +887,131 @@ function TimelineGrid({
               </span>
             </div>
 
-            {/* Cells */}
-            {Array.from({ length: displayCols }, (_, i) => {
-              const cell = track.cells[i]
-              const isPlayhead = timecodePlaying && timecodeCurrentStep === i
-
-              return (
-                <div
-                  key={i}
-                  className={`flex-shrink-0 border-b border-r border-neutral-800/15 relative transition-colors ${
-                    isPlayhead ? 'bg-neutral-800/20' : 'hover:bg-neutral-900/40'
-                  }`}
-                  style={{ width: COL_WIDTH, height: ROW_HEIGHT }}
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDrop(e, track.groupId, i)}
-                >
-                  {/* Playhead indicator */}
-                  {isPlayhead && (
-                    <motion.div
-                      className="absolute left-0 right-0 top-0 h-[2px] bg-white z-20"
-                      layoutId="step-indicator"
-                      transition={{ duration: 0 }}
-                    />
-                  )}
-
-                  {/* Cell content */}
-                  {cell && (
-                    <CellBadge
-                      cell={cell}
-                      onRemove={() => removeTimecodeEntry(track.groupId, i)}
-                      onCycleWait={
-                        cell.type === 'wait'
-                          ? () => cycleWaitMultiplier(track.groupId, i)
-                          : undefined
+            {/* Cells row: mix of drop targets and spanning blocks */}
+            <div className="relative flex" style={{ height: ROW_HEIGHT }}>
+              {/* Background drop targets */}
+              {Array.from({ length: displayCols }, (_, i) => {
+                // Skip if this column is covered by a multi-col cell (but not the start col)
+                if (i > 0 && occupiedColsMap[track.groupId]?.has(i)) {
+                  const cellAtStart = track.cells[i]
+                  // This column is covered but is NOT the anchor — only render if no cell starts here
+                  if (!cellAtStart) {
+                    // Check if any cell covers this column
+                    let coveredBy = false
+                    for (const [colStr, cell] of Object.entries(track.cells)) {
+                      const startCol = Number(colStr)
+                      const dur = cell.duration || 1
+                      if (i >= startCol && i < startCol + dur && i !== startCol) {
+                        coveredBy = true
+                        break
                       }
-                      isPlayhead={isPlayhead}
-                    />
-                  )}
-                </div>
-              )
-            })}
+                    }
+                    if (coveredBy) return null
+                  }
+                }
+
+                const cell = track.cells[i]
+                const isPlayhead = timecodePlaying && timecodeCurrentStep === i
+
+                // Don't render individual cell if it's part of a spanning block
+                if (cell && (cell.duration || 1) > 1 && cell) {
+                  return null // Will be rendered as a spanning block below
+                }
+
+                return (
+                  <div
+                    key={i}
+                    className={`flex-shrink-0 border-b border-r border-neutral-800/15 absolute transition-colors ${
+                      isPlayhead ? 'bg-neutral-800/20' : 'hover:bg-neutral-900/40'
+                    }`}
+                    style={{ width: COL_WIDTH, height: ROW_HEIGHT, left: i * COL_WIDTH }}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, track.groupId, i)}
+                  >
+                    {/* Playhead indicator */}
+                    {isPlayhead && (
+                      <motion.div
+                        className="absolute left-0 right-0 top-0 h-[2px] bg-white z-20"
+                        layoutId="step-indicator"
+                        transition={{ duration: 0 }}
+                      />
+                    )}
+
+                    {/* Single-cell content */}
+                    {cell && (
+                      <CellBadge
+                        cell={cell}
+                        colSpan={1}
+                        onRemove={() => removeTimecodeEntry(track.groupId, i)}
+                        onCycleWait={
+                          cell.type === 'wait'
+                            ? () => cycleWaitMultiplier(track.groupId, i)
+                            : undefined
+                        }
+                        onResizeStart={
+                          cell.type !== 'wait'
+                            ? (e) => handleResizeStart(e, track.groupId, i, cell.duration || 1)
+                            : undefined
+                        }
+                        isPlayhead={isPlayhead}
+                      />
+                    )}
+                  </div>
+                )
+              })}
+
+              {/* Spanning blocks (duration > 1) */}
+              {items
+                .filter(({ cell }) => (cell.duration || 1) > 1)
+                .map(({ startCol, cell, key }) => {
+                  const dur = cell.duration || 1
+                  const blockWidth = dur * COL_WIDTH
+                  const isPlayhead = timecodePlaying &&
+                    timecodeCurrentStep >= startCol &&
+                    timecodeCurrentStep < startCol + dur
+
+                  return (
+                    <div
+                      key={`span-${key}`}
+                      className={`absolute border-b border-neutral-800/15 transition-colors ${
+                        isPlayhead ? 'bg-neutral-800/20' : ''
+                      }`}
+                      style={{
+                        left: startCol * COL_WIDTH,
+                        width: blockWidth,
+                        height: ROW_HEIGHT,
+                        top: 0,
+                      }}
+                    >
+                      {/* Playhead indicator */}
+                      {isPlayhead && (
+                        <motion.div
+                          className="absolute left-0 right-0 top-0 h-[2px] bg-white z-20"
+                          layoutId="step-indicator"
+                          transition={{ duration: 0 }}
+                        />
+                      )}
+
+                      <CellBadge
+                        cell={cell}
+                        colSpan={dur}
+                        onRemove={() => removeTimecodeEntry(track.groupId, startCol)}
+                        onCycleWait={
+                          cell.type === 'wait'
+                            ? () => cycleWaitMultiplier(track.groupId, startCol)
+                            : undefined
+                        }
+                        onResizeStart={
+                          cell.type !== 'wait'
+                            ? (e) => handleResizeStart(e, track.groupId, startCol, cell.duration || 1)
+                            : undefined
+                        }
+                        isPlayhead={isPlayhead}
+                      />
+                    </div>
+                  )
+                })}
+            </div>
           </div>
         ))}
       </div>
@@ -759,17 +1019,21 @@ function TimelineGrid({
   )
 }
 
-/* ─── Cell Badge ──────────────────────────────── */
+/* ─── Cell Badge (supports spanning) ──────────── */
 
 function CellBadge({
   cell,
+  colSpan,
   onRemove,
   onCycleWait,
+  onResizeStart,
   isPlayhead,
 }: {
   cell: TimecodeCell
+  colSpan: number
   onRemove: () => void
   onCycleWait?: () => void
+  onResizeStart?: (e: React.MouseEvent) => void
   isPlayhead: boolean
 }) {
   const [hovered, setHovered] = useState(false)
@@ -792,6 +1056,8 @@ function CellBadge({
     ? activeColors[cell.type] ?? activeColors.effect
     : typeColors[cell.type] ?? typeColors.effect
 
+  const isMultiSpan = colSpan > 1
+
   return (
     <div
       className={`absolute inset-[2px] rounded flex items-center gap-0.5 px-1.5 border overflow-hidden transition-colors cursor-pointer ${baseColor}`}
@@ -805,11 +1071,46 @@ function CellBadge({
           : cell.label}
       </span>
 
+      {/* Duration / loop indicator for multi-span blocks */}
+      {isMultiSpan && cell.type !== 'wait' && (
+        <span className="text-[7px] text-neutral-500 flex-shrink-0 font-mono">
+          {colSpan}x
+        </span>
+      )}
+
+      {/* Loop icon for multi-span effects */}
+      {isMultiSpan && cell.type === 'effect' && (
+        <svg
+          className="w-2.5 h-2.5 text-neutral-500 flex-shrink-0"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M17 1l4 4-4 4" />
+          <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+          <path d="M7 23l-4-4 4-4" />
+          <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+        </svg>
+      )}
+
+      {/* Resize handle (right edge) */}
+      {onResizeStart && (
+        <div
+          className="absolute top-0 right-0 bottom-0 w-2 cursor-ew-resize z-10 flex items-center justify-center hover:bg-white/10 transition-colors"
+          onMouseDown={onResizeStart}
+        >
+          <div className="w-[1px] h-3/5 bg-neutral-600 rounded-full" />
+        </div>
+      )}
+
       {/* Remove button */}
       <AnimatePresence>
         {hovered && (
           <motion.button
-            className="w-3.5 h-3.5 rounded-full flex items-center justify-center bg-neutral-900/80 hover:bg-red-900/60 text-neutral-500 hover:text-red-300 flex-shrink-0 transition-colors cursor-pointer"
+            className="w-3.5 h-3.5 rounded-full flex items-center justify-center bg-neutral-900/80 hover:bg-red-900/60 text-neutral-500 hover:text-red-300 flex-shrink-0 transition-colors cursor-pointer z-20"
             initial={{ opacity: 0, scale: 0.5 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.5 }}

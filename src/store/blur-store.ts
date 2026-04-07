@@ -71,6 +71,7 @@ export interface TimecodeCell {
   action: string
   label: string
   waitMultiplier: number // 1 = 1 beat, 0.5 = half, 2 = double
+  duration: number // how many columns this cell spans (default 1)
 }
 
 export interface TimecodeTrack {
@@ -239,9 +240,10 @@ interface BlurState {
   loadTimecode: (id: string) => void
   setTimecodeBpm: (bpm: number) => void
   setTimecodeName: (name: string) => void
-  addTimecodeEntry: (groupId: string, col: number, entry: Omit<TimecodeCell, 'id'>) => void
+  addTimecodeEntry: (groupId: string, col: number, entry: Omit<TimecodeCell, 'id' | 'duration'>) => void
   removeTimecodeEntry: (groupId: string, col: number) => void
   cycleWaitMultiplier: (groupId: string, col: number) => void
+  resizeTimecodeEntry: (groupId: string, col: number, newDuration: number) => void
   playTimecode: () => void
   stopTimecode: () => void
   getActiveTimecode: () => SavedTimecode | undefined
@@ -975,6 +977,7 @@ export const useBlurStore = create<BlurState>((set, get) => ({
       ...entry,
       id: `tcell-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       waitMultiplier: entry.type === 'wait' ? 1 : 0,
+      duration: 1,
     }
     set((s) => ({
       timecodeProjects: s.timecodeProjects.map((p) =>
@@ -1005,6 +1008,36 @@ export const useBlurStore = create<BlurState>((set, get) => ({
                 const newCells = { ...t.cells }
                 delete newCells[col]
                 return { ...t, cells: newCells }
+              }),
+            }
+          : p
+      ),
+    }))
+  },
+
+  resizeTimecodeEntry: (groupId, col, newDuration) => {
+    const { activeTimecodeId } = get()
+    if (!activeTimecodeId) return
+    const clamped = Math.max(1, Math.min(64, newDuration))
+    set((s) => ({
+      timecodeProjects: s.timecodeProjects.map((p) =>
+        p.id === activeTimecodeId
+          ? {
+              ...p,
+              tracks: p.tracks.map((t) => {
+                if (t.groupId !== groupId) return t
+                const cell = t.cells[col]
+                if (!cell) return t
+                // Check for overlap: if extending, make sure target cols are free
+                if (clamped > cell.duration) {
+                  for (let c = col; c < col + clamped; c++) {
+                    if (c !== col && t.cells[c]) return t // collision
+                  }
+                }
+                return {
+                  ...t,
+                  cells: { ...t.cells, [col]: { ...cell, duration: clamped } },
+                }
               }),
             }
           : p
@@ -1052,8 +1085,11 @@ export const useBlurStore = create<BlurState>((set, get) => ({
 
     let maxCol = 0
     for (const track of project.tracks) {
- const cols = Object.keys(track.cells).map(Number)
-      if (cols.length > 0) maxCol = Math.max(maxCol, ...cols)
+      for (const [colStr, cell] of Object.entries(track.cells)) {
+        const col = Number(colStr)
+        const endCol = col + (cell.duration || 1) - 1
+        if (endCol > maxCol) maxCol = endCol
+      }
     }
     if (maxCol === 0) { get().addToast('No entries to play', 'warning'); return }
 
