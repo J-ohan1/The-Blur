@@ -1,4 +1,6 @@
 import { create } from 'zustand'
+import { useEffectEditorStore } from './effect-editor-store'
+import type { EffectType } from './effect-editor-store'
 
 /* ─── Types ─────────────────────────────────────── */
 
@@ -37,10 +39,27 @@ export interface FaderValue {
   value: number // 0-255
 }
 
+export interface HubEffect {
+  id: string
+  name: string
+  authorName: string
+  authorId: string
+  type: EffectType
+  tags: string[]
+ downloads: number
+  codeLines: string[]
+ createdAt: number
+}
+
+export interface SavedPosition {
+  id: string
+  name: string
+}
+
 interface BlurState {
   // App phase
   phase: 'landing' | 'welcome' | 'main'
-  activePanel: 'home' | 'control' | 'player' | 'group' | 'customisation' | 'info' | 'effect'
+  activePanel: 'home' | 'control' | 'player' | 'group' | 'customisation' | 'info' | 'effect' | 'hub'
 
   // Current user
   currentUser: PlayerData
@@ -84,6 +103,17 @@ interface BlurState {
   tiltDirection: number // -1 left, 0 center, 1 right
   panDirection: number // -1 left, 0 center, 1 right
 
+  // Hub panel
+  hubSearch: string
+  hubFilter: 'all' | EffectType
+  hubViewingUser: string | null  // authorId or null for all
+  hubEffects: HubEffect[]
+
+  // Position section (Control panel)
+  positions: SavedPosition[]
+  activePosition: string | null
+  positionTimer: ReturnType<typeof setTimeout> | null
+
   // Customisation panel
   customisation: {
     colorHue: number
@@ -94,7 +124,7 @@ interface BlurState {
 
   // Actions
   enterPanel: () => void
-  setActivePanel: (panel: 'home' | 'control' | 'player' | 'group' | 'customisation' | 'info' | 'effect') => void
+  setActivePanel: (panel: 'home' | 'control' | 'player' | 'group' | 'customisation' | 'info' | 'effect' | 'hub') => void
   toggleProfileDropdown: () => void
   closeProfileDropdown: () => void
   checkEasterEgg: () => void
@@ -141,6 +171,17 @@ interface BlurState {
   applyLeftRight: (mode: 'left' | 'right') => void
   applyQuickColor: (color: string) => void
   applyColorPattern: (pattern: string) => void
+
+  // Hub panel
+  setHubSearch: (v: string) => void
+  setHubFilter: (v: 'all' | EffectType) => void
+  viewHubUser: (authorId: string | null) => void
+  addHubEffectToCustom: (hubEffect: HubEffect) => void
+
+  // Position
+  addPosition: (name: string) => void
+  removePosition: (id: string) => void
+  activatePosition: (id: string) => void
 }
 
 /* ─── Role helpers ───────────────────────────────── */
@@ -303,6 +344,27 @@ export const EFFECTS: EffectItem[] = [
   { id: 'stacking', name: 'Stacking', category: 'advanced' },
 ]
 
+/* ─── Mock Hub Effects ─────────────────────────── */
+
+const MOCK_HUB_EFFECTS: HubEffect[] = [
+  { id: 'hub-1', name: 'Rainbow Storm', authorName: 'LaserKing99', authorId: '3', type: 'wave', tags: ['wave', 'color', 'rainbow'], downloads: 234, codeLines: ['beam.setTilt(frame)', 'beam.setColor(hue)'], createdAt: Date.now() - 86400000 * 5 },
+  { id: 'hub-2', name: 'Midnight Chase', authorName: 'NightOwl', authorId: '4', type: 'chase', tags: ['chase', 'dark'], downloads: 187, codeLines: ['beam.sequence()'], createdAt: Date.now() - 86400000 * 3 },
+  { id: 'hub-3', name: 'Hyper Strobe', authorName: 'PixelMaster', authorId: '5', type: 'strobe', tags: ['strobe', 'fast'], downloads: 312, codeLines: ['beam.strobe(50)'], createdAt: Date.now() - 86400000 * 7 },
+  { id: 'hub-4', name: 'Ocean Wave', authorName: 'Alex_Dev', authorId: '2', type: 'wave', tags: ['wave', 'smooth'], downloads: 156, codeLines: ['wave.sin(0.5)'], createdAt: Date.now() - 86400000 * 2 },
+  { id: 'hub-5', name: 'Fire Cascade', authorName: 'LaserKing99', authorId: '3', type: 'pattern', tags: ['pattern', 'fire'], downloads: 203, codeLines: ['cascade.fire()'], createdAt: Date.now() - 86400000 * 10 },
+  { id: 'hub-6', name: 'Galaxy Spiral', authorName: 'StarLight', authorId: '11', type: 'movement', tags: ['movement', 'spiral'], downloads: 98, codeLines: ['beam.spiral(360)'], createdAt: Date.now() - 86400000 * 1 },
+  { id: 'hub-7', name: 'Neon Bounce', authorName: 'NightOwl', authorId: '4', type: 'chase', tags: ['chase', 'color', 'bounce'], downloads: 145, codeLines: ['beam.bounce(15)'], createdAt: Date.now() - 86400000 * 4 },
+  { id: 'hub-8', name: 'Heartbeat', authorName: 'PixelMaster', authorId: '5', type: 'pattern', tags: ['pattern', 'pulse'], downloads: 278, codeLines: ['pulse.heartbeat()'], createdAt: Date.now() - 86400000 * 8 },
+  { id: 'hub-9', name: 'Thunder Strike', authorName: 'Alex_Dev', authorId: '2', type: 'strobe', tags: ['strobe', 'flash'], downloads: 167, codeLines: ['flash.strike()'], createdAt: Date.now() - 86400000 * 6 },
+  { id: 'hub-10', name: 'Aurora Borealis', authorName: 'BlueFlame', authorId: '12', type: 'wave', tags: ['wave', 'color', 'aurora'], downloads: 421, codeLines: ['beam.aurora(7)'], createdAt: Date.now() - 86400000 * 12 },
+  { id: 'hub-11', name: 'Matrix Rain', authorName: 'LaserKing99', authorId: '3', type: 'pattern', tags: ['pattern', 'rain'], downloads: 189, codeLines: ['rain.matrix()'], createdAt: Date.now() - 86400000 * 9 },
+  { id: 'hub-12', name: 'Laser Sword', authorName: 'xXDragonXx', authorId: '7', type: 'movement', tags: ['movement', 'sword'], downloads: 256, codeLines: ['beam.sword(45)'], createdAt: Date.now() - 86400000 * 3 },
+  { id: 'hub-13', name: 'Cosmic Dust', authorName: 'StarLight', authorId: '11', type: 'pattern', tags: ['pattern', 'sparkle'], downloads: 134, codeLines: ['dust.cosmic()'], createdAt: Date.now() - 86400000 * 5 },
+  { id: 'hub-14', name: 'Vortex Spin', authorName: 'BlueFlame', authorId: '12', type: 'movement', tags: ['movement', 'vortex'], downloads: 298, codeLines: ['spin.vortex(720)'], createdAt: Date.now() - 86400000 * 2 },
+  { id: 'hub-15', name: 'Pixel Storm', authorName: 'CoolBuilder', authorId: '8', type: 'strobe', tags: ['strobe', 'random'], downloads: 176, codeLines: ['random.pixel()'], createdAt: Date.now() - 86400000 * 4 },
+  { id: 'hub-16', name: 'Sunset Fade', authorName: 'NightOwl', authorId: '4', type: 'color', tags: ['color', 'fade', 'warm'], downloads: 145, codeLines: ['color.sunset(30)'], createdAt: Date.now() - 86400000 * 7 },
+]
+
 /* ─── Mock players ───────────────────────────────── */
 
 const MOCK_PLAYERS: PlayerData[] = [
@@ -345,6 +407,23 @@ export const useBlurStore = create<BlurState>((set, get) => ({
   selectedBeams: [],
   groupNameInput: '',
   deleteConfirmId: null,
+
+  // Hub
+  hubSearch: '',
+  hubFilter: 'all',
+  hubViewingUser: null,
+  hubEffects: MOCK_HUB_EFFECTS,
+
+  // Position
+  positions: [
+    { id: 'pos-1', name: 'Fan Out' },
+    { id: 'pos-2', name: 'Center' },
+    { id: 'pos-3', name: 'Split' },
+    { id: 'pos-4', name: 'Wave Line' },
+    { id: 'pos-5', name: 'Symmetric' },
+  ],
+  activePosition: null,
+  positionTimer: null,
 
   // UI
   showProfileDropdown: false,
@@ -665,5 +744,58 @@ export const useBlurStore = create<BlurState>((set, get) => ({
     if (groups.length === 0) { addToast('No groups. Please create a group first.', 'warning'); return }
     if (selectedGroupIds.length === 0) { addToast('No group selected to perform the operation.', 'warning'); return }
     addToast(`Color pattern applied`, 'success')
+  },
+
+  // Hub panel
+  setHubSearch: (v) => set({ hubSearch: v }),
+  setHubFilter: (v) => set({ hubFilter: v }),
+  viewHubUser: (authorId) => set({ hubViewingUser: authorId, hubSearch: '' }),
+
+  addHubEffectToCustom: (hubEffect) => {
+    const { addToast } = get()
+    // Check if already added
+    const effectEditorState = useEffectEditorStore.getState()
+    const alreadyAdded = effectEditorState.savedEffects.some((e) => e.name === hubEffect.name && e.source === 'hub')
+    if (alreadyAdded) {
+      addToast(`"${hubEffect.name}" is already in your custom effects`, 'warning')
+      return
+    }
+    // Add to effect editor store as hub-sourced effect
+    const newEffect: import('./effect-editor-store').SavedCustomEffect = {
+      id: `hub-${hubEffect.id}`,
+      name: hubEffect.name,
+      type: hubEffect.type,
+      tags: [...hubEffect.tags, 'hub-import'],
+      frames: [], // Frame data would come from Firebase in production
+      source: 'hub',
+      createdAt: Date.now(),
+    }
+    useEffectEditorStore.getState().addHubEffect(newEffect)
+    addToast(`"${hubEffect.name}" added to custom effects`, 'success')
+  },
+
+  // Position
+  addPosition: (name) => {
+    const validation = validateGroupName(name)
+    if (!validation.valid) { get().addToast(validation.reason, 'warning'); return }
+    set((s) => ({
+      positions: [...s.positions, { id: `pos-${Date.now()}`, name: name.trim() }],
+    }))
+    get().addToast(`Position "${name.trim()}" saved`, 'success')
+  },
+  removePosition: (id) => {
+    const { positions } = get()
+    const pos = positions.find((p) => p.id === id)
+    set({ positions: positions.filter((p) => p.id !== id), activePosition: null })
+    if (pos) get().addToast(`Position "${pos.name}" removed`, 'success')
+  },
+  activatePosition: (id) => {
+    // Clear any existing timer
+    const { positionTimer } = get()
+    if (positionTimer) clearTimeout(positionTimer)
+    // Set active, auto-deactivate after 1 second
+    set({ activePosition: id, positionTimer: setTimeout(() => {
+      set({ activePosition: null, positionTimer: null })
+    }, 1000) })
   },
 }))

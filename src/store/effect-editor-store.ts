@@ -145,6 +145,7 @@ interface EffectEditorState {
 
   /* Saved effects */
   deleteSavedEffect: (id: string) => void
+  addHubEffect: (effect: SavedCustomEffect) => void
 }
 
 /* ─── Store ─────────────────────────────────────── */
@@ -441,5 +442,9 @@ export const useEffectEditorStore = create<EffectEditorState>((set, get) => ({
 
   deleteSavedEffect: (id) => {
     set((s) => ({ savedEffects: s.savedEffects.filter((e) => e.id !== id) }))
+  },
+
+  addHubEffect: (effect) => {
+    set((s) => ({ savedEffects: [...s.savedEffects, effect] }))
   },
 }))

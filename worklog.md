@@ -76,3 +76,41 @@ Stage Summary:
 - All 36 built-in effects available as presets with procedural frame data
 - 8+ easter eggs throughout the effect panel
 - Zero lint errors, clean compilation
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Hub Panel + Position Section in Control Panel
+
+Work Log:
+- Updated blur-store.ts: added 'hub' to activePanel union type, HubEffect interface, SavedPosition interface
+- Added hub state: hubSearch, hubFilter, hubViewingUser, hubEffects (16 mock effects from 6 authors)
+- Added position state: positions (5 defaults: Fan Out, Center, Split, Wave Line, Symmetric), activePosition, positionTimer
+- Added actions: setHubSearch, setHubFilter, viewHubUser, addHubEffectToCustom, addPosition, removePosition, activatePosition
+- addHubEffectToCustom bridges hub to effect editor store, preventing duplicates
+- activatePosition uses one-time toggle: activates then auto-deactivates after 1 second
+- Updated effect-editor-store.ts: added addHubEffect action to accept hub-sourced effects into savedEffects
+- Updated NavBar.tsx: added Hub button between Effect and Customisation
+- Updated page.tsx: imported HubPanel, added route for hub activePanel
+- Created HubPanel.tsx with two tabs (Browse / My Uploads):
+  - Browse tab: search bar (searches effects + creators), filter dropdown (by type)
+  - Effect cards: no icon, effect name + by username, type badge, download count, Add button
+  - Clicking username filters to show only that users effects with a back button
+  - Add button adds effect to Custom Effects (Control Panel) + Effect Panel as hub-sourced preset
+  - Hover shows code preview (simulating Firebase beam code lines)
+  - Top Creators footer shows sorted author list
+  - My Uploads tab: shows current users uploaded effects with empty state
+  - Easter egg: search blur in hub shows toast message
+- Updated ControlPanel.tsx: added PositionSection between top row and effects
+  - Square buttons (aspect-square) with position names
+  - One-time toggle: click activates (white glow, scale animation), auto-deactivates after 1 second
+  - Add button to create new positions with input field
+  - Delete button on hover per position
+  - Grid layout (5 columns) for compact arrangement
+
+Stage Summary:
+- 6 files modified: blur-store.ts, effect-editor-store.ts, NavBar.tsx, page.tsx, ControlPanel.tsx
+- 1 new file: HubPanel.tsx
+- Hub panel with browse/my uploads tabs, search, filter, author profiles, add-to-custom functionality
+- Position section with square toggle buttons, auto-deactivation, add/remove positions
+- Zero lint errors, clean compilation (dev server confirmed 200 OK)

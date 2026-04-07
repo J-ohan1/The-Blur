@@ -30,12 +30,13 @@ export function NavBar() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [closeProfileDropdown])
 
-  const navButtons: { label: string; key: 'home' | 'control' | 'player' | 'group' | 'customisation' | 'info' | 'effect' }[] = [
+  const navButtons: { label: string; key: 'home' | 'control' | 'player' | 'group' | 'customisation' | 'info' | 'effect' | 'hub' }[] = [
     { label: 'Home', key: 'home' },
     { label: 'Control', key: 'control' },
     { label: 'Player', key: 'player' },
     { label: 'Group', key: 'group' },
     { label: 'Effect', key: 'effect' },
+    { label: 'Hub', key: 'hub' },
     { label: 'Customisation', key: 'customisation' },
     { label: 'Info', key: 'info' },
   ]

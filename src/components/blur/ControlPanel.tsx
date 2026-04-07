@@ -1,7 +1,7 @@
 'use client'
 
-import { useCallback } from 'react'
-import { motion } from 'framer-motion'
+import { useCallback, useState, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useBlurStore, type LaserGroup } from '@/store/blur-store'
 import { EFFECTS_CATEGORIES } from './effects-categories'
 import { useEffectEditorStore } from '@/store/effect-editor-store'
@@ -50,6 +50,9 @@ export function ControlPanel() {
         <CustomGroupPanel groups={groups} selectedGroupIds={selectedGroupIds} />
         <CustomEffectPanel />
       </div>
+
+      {/* Position Section */}
+      <PositionSection />
 
       {/* Bottom: Effects */}
       <div className="flex-1 rounded-xl border border-neutral-800/70 bg-neutral-950/50 overflow-hidden flex flex-col">
@@ -319,6 +322,126 @@ function CustomEffectPanel() {
             </span>
           </div>
         ))}
+      </div>
+    </div>
+  )
+}
+
+/* ─── Position Section ─────────────────────────── */
+
+function PositionSection() {
+  const positions = useBlurStore((s) => s.positions)
+  const activePosition = useBlurStore((s) => s.activePosition)
+  const activatePosition = useBlurStore((s) => s.activatePosition)
+  const addPosition = useBlurStore((s) => s.addPosition)
+  const removePosition = useBlurStore((s) => s.removePosition)
+
+  const [showAddInput, setShowAddInput] = useState(false)
+  const [newPosName, setNewPosName] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const handleAdd = useCallback(() => {
+    if (newPosName.trim()) {
+      addPosition(newPosName)
+      setNewPosName('')
+      setShowAddInput(false)
+    }
+  }, [newPosName, addPosition])
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleAdd()
+    if (e.key === 'Escape') { setShowAddInput(false); setNewPosName('') }
+  }, [handleAdd])
+
+  return (
+    <div className="rounded-xl border border-neutral-800/70 bg-neutral-950/50 overflow-hidden flex-shrink-0">
+      <div className="h-8 flex items-center justify-between px-4 border-b border-neutral-800/50">
+        <span className="text-[12px] font-semibold tracking-wide text-neutral-300">Position</span>
+        <button
+          className="text-[10px] text-neutral-600 hover:text-neutral-300 transition-colors cursor-pointer"
+          onClick={() => { setShowAddInput(true); setTimeout(() => inputRef.current?.focus(), 50) }}
+        >
+          + Add
+        </button>
+      </div>
+
+      <div className="p-3">
+        {/* Add position input */}
+        <AnimatePresence>
+          {showAddInput && (
+            <motion.div
+              className="flex items-center gap-2 mb-3"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+            >
+              <input
+                ref={inputRef}
+                type="text"
+                value={newPosName}
+                onChange={(e) => setNewPosName(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Position name..."
+                maxLength={20}
+                className="flex-1 h-8 px-3 text-[11px] text-white bg-neutral-900/60 border border-neutral-800 rounded-lg outline-none placeholder:text-neutral-700 focus:border-neutral-600 transition-colors"
+                onBlur={() => { if (!newPosName.trim()) { setShowAddInput(false) } }}
+              />
+              <motion.button
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-medium border transition-colors cursor-pointer ${
+                  newPosName.trim() ? 'bg-white text-black border-transparent hover:bg-neutral-200' : 'border-neutral-800/40 text-neutral-600'
+                }`}
+                onClick={handleAdd}
+                disabled={!newPosName.trim()}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                Save
+              </motion.button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Square position buttons */}
+        {positions.length > 0 ? (
+          <div className="grid grid-cols-5 gap-2">
+            {positions.map((pos) => {
+              const isActive = activePosition === pos.id
+              return (
+                <div key={pos.id} className="relative group/pos">
+                  <motion.button
+                    className={`w-full aspect-square rounded-lg border text-[10px] font-medium transition-all duration-300 cursor-pointer flex items-center justify-center px-1 text-center leading-tight ${
+                      isActive
+                        ? 'bg-white text-black border-white shadow-[0_0_12px_rgba(255,255,255,0.3)]'
+                        : 'bg-neutral-900/30 border-neutral-800/50 text-neutral-500 hover:text-neutral-300 hover:border-neutral-700'
+                    }`}
+                    onClick={() => activatePosition(pos.id)}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    animate={isActive ? { scale: [1, 1.05, 1] } : {}}
+                    transition={isActive ? { duration: 0.3 } : {}}
+                  >
+                    {pos.name}
+                  </motion.button>
+                  {/* Delete on hover */}
+                  <button
+                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-neutral-900 border border-neutral-700 flex items-center justify-center opacity-0 group-hover/pos:opacity-100 transition-opacity cursor-pointer"
+                    onClick={(e) => { e.stopPropagation(); removePosition(pos.id) }}
+                  >
+                    <span className="text-[8px] text-neutral-500 hover:text-red-400">x</span>
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <motion.p
+            className="text-[10px] text-neutral-700 text-center py-2"
+            animate={{ opacity: [0.3, 0.7, 0.3] }}
+            transition={{ duration: 2, repeat: Infinity }}
+          >
+            No positions saved
+          </motion.p>
+        )}
       </div>
     </div>
   )
