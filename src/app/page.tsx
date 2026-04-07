@@ -13,6 +13,7 @@ import { CustomisationPanel } from '@/components/blur/CustomisationPanel'
 import { InfoPanel } from '@/components/blur/InfoPanel'
 import { EffectPanel } from '@/components/blur/EffectPanel'
 import { HubPanel } from '@/components/blur/HubPanel'
+import { KeybindPanel } from '@/components/blur/KeybindPanel'
 import { ToastContainer } from '@/components/blur/ToastContainer'
 
 export default function Page() {
@@ -37,6 +38,7 @@ export default function Page() {
               {activePanel === 'info' && <InfoPanel key="info" />}
               {activePanel === 'effect' && <EffectPanel key="effect" />}
               {activePanel === 'hub' && <HubPanel key="hub" />}
+              {activePanel === 'keybind' && <KeybindPanel key="keybind" />}
             </AnimatePresence>
           </div>
         )}

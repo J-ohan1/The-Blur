@@ -17,6 +17,7 @@ export function NavBar() {
   const checkEasterEgg = useBlurStore((s) => s.checkEasterEgg)
   const closeEasterEgg = useBlurStore((s) => s.closeEasterEgg)
   const closeProfileDropdown = useBlurStore((s) => s.closeProfileDropdown)
+  const keybinds = useBlurStore((s) => s.keybinds)
 
   const navRef = useRef<HTMLDivElement>(null)
 
@@ -30,13 +31,14 @@ export function NavBar() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [closeProfileDropdown])
 
-  const navButtons: { label: string; key: 'home' | 'control' | 'player' | 'group' | 'customisation' | 'info' | 'effect' | 'hub' }[] = [
+  const navButtons: { label: string; key: 'home' | 'control' | 'player' | 'group' | 'customisation' | 'info' | 'effect' | 'hub' | 'keybind' }[] = [
     { label: 'Home', key: 'home' },
     { label: 'Control', key: 'control' },
     { label: 'Player', key: 'player' },
     { label: 'Group', key: 'group' },
     { label: 'Effect', key: 'effect' },
     { label: 'Hub', key: 'hub' },
+    { label: 'Keybind', key: 'keybind' },
     { label: 'Customisation', key: 'customisation' },
     { label: 'Info', key: 'info' },
   ]
@@ -82,6 +84,12 @@ export function NavBar() {
                     layoutId="nav-underline"
                     transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                   />
+                )}
+                {/* Keybind count badge */}
+                {item.key === 'keybind' && keybinds.length > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] flex items-center justify-center rounded-full bg-white text-black text-[9px] font-bold px-1">
+                    {keybinds.length}
+                  </span>
                 )}
                 {/* Blink dot when no groups exist */}
                 {needsBlink && !isActive && (

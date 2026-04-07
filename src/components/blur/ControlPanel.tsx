@@ -355,22 +355,22 @@ function PositionSection() {
 
   return (
     <div className="rounded-xl border border-neutral-800/70 bg-neutral-950/50 overflow-hidden flex-shrink-0">
-      <div className="h-8 flex items-center justify-between px-4 border-b border-neutral-800/50">
+      <div className="h-7 flex items-center justify-between px-3 border-b border-neutral-800/50">
         <span className="text-[12px] font-semibold tracking-wide text-neutral-300">Position</span>
         <button
-          className="text-[10px] text-neutral-600 hover:text-neutral-300 transition-colors cursor-pointer"
+          className="text-[9px] text-neutral-600 hover:text-neutral-300 transition-colors cursor-pointer"
           onClick={() => { setShowAddInput(true); setTimeout(() => inputRef.current?.focus(), 50) }}
         >
           + Add
         </button>
       </div>
 
-      <div className="p-3">
+      <div className="p-2">
         {/* Add position input */}
         <AnimatePresence>
           {showAddInput && (
             <motion.div
-              className="flex items-center gap-2 mb-3"
+              className="flex items-center gap-2 mb-2"
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
@@ -403,13 +403,13 @@ function PositionSection() {
 
         {/* Square position buttons */}
         {positions.length > 0 ? (
-          <div className="grid grid-cols-5 gap-2">
+          <div className="grid grid-cols-8 gap-1.5">
             {positions.map((pos) => {
               const isActive = activePosition === pos.id
               return (
                 <div key={pos.id} className="relative group/pos">
                   <motion.button
-                    className={`w-full aspect-square rounded-lg border text-[10px] font-medium transition-all duration-300 cursor-pointer flex items-center justify-center px-1 text-center leading-tight ${
+                    className={`w-full h-8 rounded-lg border text-[9px] font-medium transition-all duration-300 cursor-pointer flex items-center justify-center px-1 text-center leading-tight ${
                       isActive
                         ? 'bg-white text-black border-white shadow-[0_0_12px_rgba(255,255,255,0.3)]'
                         : 'bg-neutral-900/30 border-neutral-800/50 text-neutral-500 hover:text-neutral-300 hover:border-neutral-700'

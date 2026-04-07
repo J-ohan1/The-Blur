@@ -56,10 +56,19 @@ export interface SavedPosition {
   name: string
 }
 
+export interface Keybind {
+  id: string
+  label: string
+  key: string           // e.g. "Q", "Shift+F", "Ctrl+1", etc.
+  code: string          // e.g. "KeyQ", "ShiftLeft", "Digit1"
+  action: string        // what it does — freeform description like "Toggle On/Off", "Activate Fan Out"
+  category: 'toggle' | 'effect' | 'position' | 'custom'
+}
+
 interface BlurState {
   // App phase
   phase: 'landing' | 'welcome' | 'main'
-  activePanel: 'home' | 'control' | 'player' | 'group' | 'customisation' | 'info' | 'effect' | 'hub'
+  activePanel: 'home' | 'control' | 'player' | 'group' | 'customisation' | 'info' | 'effect' | 'hub' | 'keybind'
 
   // Current user
   currentUser: PlayerData
@@ -114,6 +123,10 @@ interface BlurState {
   activePosition: string | null
   positionTimer: ReturnType<typeof setTimeout> | null
 
+  // Keybinds
+  keybinds: Keybind[]
+  keybindListeningId: string | null  // ID of keybind currently listening for a key press
+
   // Customisation panel
   customisation: {
     colorHue: number
@@ -124,7 +137,7 @@ interface BlurState {
 
   // Actions
   enterPanel: () => void
-  setActivePanel: (panel: 'home' | 'control' | 'player' | 'group' | 'customisation' | 'info' | 'effect' | 'hub') => void
+  setActivePanel: (panel: 'home' | 'control' | 'player' | 'group' | 'customisation' | 'info' | 'effect' | 'hub' | 'keybind') => void
   toggleProfileDropdown: () => void
   closeProfileDropdown: () => void
   checkEasterEgg: () => void
@@ -182,6 +195,12 @@ interface BlurState {
   addPosition: (name: string) => void
   removePosition: (id: string) => void
   activatePosition: (id: string) => void
+
+  // Keybinds
+  addKeybind: (label: string, action: string, category: Keybind['category']) => void
+  removeKeybind: (id: string) => void
+  startListening: (id: string) => void
+  stopListening: () => void
 }
 
 /* ─── Role helpers ───────────────────────────────── */
@@ -423,6 +442,10 @@ export const useBlurStore = create<BlurState>((set, get) => ({
   ],
   activePosition: null,
   positionTimer: null,
+
+  // Keybinds
+  keybinds: [],
+  keybindListeningId: null,
 
   // UI
   showProfileDropdown: false,
@@ -797,4 +820,24 @@ export const useBlurStore = create<BlurState>((set, get) => ({
       set({ activePosition: null, positionTimer: null })
     }, 1000) })
   },
+
+  // Keybinds
+  addKeybind: (label, action, category) => {
+    const newBind: Keybind = {
+      id: `kb-${Date.now()}`,
+      label,
+      key: '...',
+      code: '',
+      action,
+      category,
+    }
+    set((s) => ({ keybinds: [...s.keybinds, newBind], keybindListeningId: newBind.id }))
+  },
+
+  removeKeybind: (id) => {
+    set((s) => ({ keybinds: s.keybinds.filter((k) => k.id !== id), keybindListeningId: s.keybindListeningId === id ? null : s.keybindListeningId }))
+  },
+
+  startListening: (id) => set({ keybindListeningId: id }),
+  stopListening: () => set({ keybindListeningId: null }),
 }))

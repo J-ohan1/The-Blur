@@ -9,6 +9,9 @@ export function ProfileDropdown() {
     currentUser,
     getTimeSpent,
     updateTimeSpent,
+    keybinds,
+    setActivePanel,
+    closeProfileDropdown,
   } = useBlurStore()
 
   const [time, setTime] = useState(getTimeSpent())
@@ -62,11 +65,13 @@ export function ProfileDropdown() {
         <div className="flex items-center gap-2 mb-2">
           <span className="text-xs text-neutral-500">Keybinds</span>
           <span className="ml-auto text-xs font-medium text-white bg-neutral-800 px-2 py-0.5 rounded-md">
-            10
+            {keybinds.length}
           </span>
         </div>
 
-        <button className="w-full text-left text-xs text-neutral-600 hover:text-neutral-300 transition-colors duration-150 mt-1 cursor-pointer">
+        <button className="w-full text-left text-xs text-neutral-600 hover:text-neutral-300 transition-colors duration-150 mt-1 cursor-pointer"
+          onClick={() => { setActivePanel('keybind'); closeProfileDropdown() }}
+        >
           See all the Keybinds
         </button>
       </div>
