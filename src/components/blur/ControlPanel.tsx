@@ -14,15 +14,13 @@ export function ControlPanel() {
   const holdOnOff = useBlurStore((s) => s.holdOnOff)
   const holdFadeOnOff = useBlurStore((s) => s.holdFadeOnOff)
   const selectedEffect = useBlurStore((s) => s.selectedEffect)
-  const tiltDirection = useBlurStore((s) => s.tiltDirection)
-  const panDirection = useBlurStore((s) => s.panDirection)
+
   const setMasterOnOff = useBlurStore((s) => s.setMasterOnOff)
   const setFadeOnOff = useBlurStore((s) => s.setFadeOnOff)
   const setHoldOnOff = useBlurStore((s) => s.setHoldOnOff)
   const setHoldFadeOnOff = useBlurStore((s) => s.setHoldFadeOnOff)
   const setSelectedEffect = useBlurStore((s) => s.setSelectedEffect)
-  const setTiltDirection = useBlurStore((s) => s.setTiltDirection)
-  const setPanDirection = useBlurStore((s) => s.setPanDirection)
+
 
   const handleHoldOnDown = useCallback(() => setHoldOnOff(true), [setHoldOnOff])
   const handleHoldOnUp = useCallback(() => setHoldOnOff(false), [setHoldOnOff])
@@ -46,7 +44,7 @@ export function ControlPanel() {
       style={{ fontFamily: 'var(--font-inter)' }}
     >
       {/* Top Row */}
-      <div className="flex gap-3 h-[180px] flex-shrink-0">
+      <div className="flex gap-3 h-[140px] flex-shrink-0">
         <CustomGroupPanel groups={groups} selectedGroupIds={selectedGroupIds} />
         <CustomEffectPanel />
       </div>
@@ -90,11 +88,7 @@ export function ControlPanel() {
               onMouseLeave={handleHoldFadeUp}
             />
 
-            <div className="my-2 border-t border-neutral-800/40" />
 
-            <SectionLabel>Direction</SectionLabel>
-            <DirectionControl label="Tilt" value={tiltDirection} onChange={setTiltDirection} />
-            <DirectionControl label="Pan" value={panDirection} onChange={setPanDirection} />
           </div>
 
           {/* Right: Scrollable Effects */}
@@ -221,54 +215,6 @@ function HoldButton({
         {active ? 'ON' : 'OFF'}
       </span>
     </button>
-  )
-}
-
-/* ─── Direction Control (< center >) ─────────── */
-
-function DirectionControl({
-  label,
-  value,
-  onChange,
-}: {
-  label: string
-  value: number // -1 left, 0 center, 1 right
-  onChange: (v: number) => void
-}) {
-  return (
-    <div className="flex items-center gap-1 px-1 py-1.5">
-      <span className="text-[10px] text-neutral-600 w-8 flex-shrink-0">{label}</span>
-      <button
-        className={`flex-1 h-7 rounded border text-[11px] font-bold transition-colors cursor-pointer ${
-          value === -1
-            ? 'bg-neutral-800/60 border-neutral-600 text-white'
-            : 'border-neutral-800/40 text-neutral-600 hover:text-neutral-400 hover:border-neutral-700'
-        }`}
-        onClick={() => onChange(value === -1 ? 0 : -1)}
-      >
-        &lt;
-      </button>
-      <button
-        className={`flex-1 h-7 rounded border text-[9px] font-medium transition-colors cursor-pointer ${
-          value === 0
-            ? 'bg-neutral-800/40 border-neutral-700 text-neutral-300'
-            : 'border-neutral-800/30 text-neutral-700'
-        }`}
-        onClick={() => onChange(0)}
-      >
-        --
-      </button>
-      <button
-        className={`flex-1 h-7 rounded border text-[11px] font-bold transition-colors cursor-pointer ${
-          value === 1
-            ? 'bg-neutral-800/60 border-neutral-600 text-white'
-            : 'border-neutral-800/40 text-neutral-600 hover:text-neutral-400 hover:border-neutral-700'
-        }`}
-        onClick={() => onChange(value === 1 ? 0 : 1)}
-      >
-        &gt;
-      </button>
-    </div>
   )
 }
 
@@ -403,13 +349,13 @@ function PositionSection() {
 
         {/* Square position buttons */}
         {positions.length > 0 ? (
-          <div className="grid grid-cols-8 gap-1.5">
+          <div className="grid grid-cols-10 gap-1">
             {positions.map((pos) => {
               const isActive = activePosition === pos.id
               return (
                 <div key={pos.id} className="relative group/pos">
                   <motion.button
-                    className={`w-full h-8 rounded-lg border text-[9px] font-medium transition-all duration-300 cursor-pointer flex items-center justify-center px-1 text-center leading-tight ${
+                    className={`w-full h-6 rounded-md border text-[8px] font-medium transition-all duration-300 cursor-pointer flex items-center justify-center px-0.5 text-center leading-tight ${
                       isActive
                         ? 'bg-white text-black border-white shadow-[0_0_12px_rgba(255,255,255,0.3)]'
                         : 'bg-neutral-900/30 border-neutral-800/50 text-neutral-500 hover:text-neutral-300 hover:border-neutral-700'

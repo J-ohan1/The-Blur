@@ -198,9 +198,11 @@ interface BlurState {
 
   // Keybinds
   addKeybind: (label: string, action: string, category: Keybind['category']) => void
+  setKeybindKey: (id: string, key: string, code: string) => void
   removeKeybind: (id: string) => void
   startListening: (id: string) => void
   stopListening: () => void
+  getKeybindByAction: (action: string) => Keybind | undefined
 }
 
 /* ─── Role helpers ───────────────────────────────── */
@@ -834,10 +836,21 @@ export const useBlurStore = create<BlurState>((set, get) => ({
     set((s) => ({ keybinds: [...s.keybinds, newBind], keybindListeningId: newBind.id }))
   },
 
+  setKeybindKey: (id, key, code) => {
+    set((s) => ({
+      keybinds: s.keybinds.map((k) => (k.id === id ? { ...k, key, code } : k)),
+      keybindListeningId: null,
+    }))
+  },
+
   removeKeybind: (id) => {
     set((s) => ({ keybinds: s.keybinds.filter((k) => k.id !== id), keybindListeningId: s.keybindListeningId === id ? null : s.keybindListeningId }))
   },
 
   startListening: (id) => set({ keybindListeningId: id }),
   stopListening: () => set({ keybindListeningId: null }),
+
+  getKeybindByAction: (action) => {
+    return get().keybinds.find((k) => k.action === action)
+  },
 }))
