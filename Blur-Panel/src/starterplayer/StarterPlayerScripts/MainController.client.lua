@@ -12,23 +12,31 @@ local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 
--- Find the SurfaceGui
-local surfaceGui = nil
-
--- Try to find from workspace hierarchy
-local blurLasers = workspace:FindFirstChild("The-Blur-Lasers")
-if blurLasers then
-    local panelFolder = blurLasers:FindFirstChild("Panel")
-    if panelFolder then
-        local panelPart = panelFolder:FindFirstChild("Panel")
-        if panelPart then
-            surfaceGui = panelPart:FindFirstChild("GUI")
+-- Wait for Rojo to sync workspace objects
+local function findSurfaceGui(maxRetries)
+    maxRetries = maxRetries or 20
+    for i = 1, maxRetries do
+        local blurLasers = workspace:FindFirstChild("The-Blur-Lasers")
+        if blurLasers then
+            local panelFolder = blurLasers:FindFirstChild("Panel")
+            if panelFolder then
+                local panelPart = panelFolder:FindFirstChild("Panel")
+                if panelPart then
+                    local gui = panelPart:FindFirstChild("GUI")
+                    if gui then
+                        return gui
+                    end
+                end
+            end
         end
+        task.wait(0.5)
     end
+    return nil
 end
 
+local surfaceGui = findSurfaceGui(20)
 if not surfaceGui then
-    warn("[The-Blur] Could not find SurfaceGui at Panel/Panel/GUI!")
+    warn("[The-Blur] Could not find SurfaceGui at Panel/Panel/GUI after retries!")
     warn("[The-Blur] Make sure your workspace hierarchy is correct:")
     warn("  The-Blur-Lasers/Panel/Panel/GUI (SurfaceGui)")
     return
@@ -52,16 +60,28 @@ for _, child in ipairs(surfaceGui:GetChildren()) do
     end
 end
 
--- Require modules
-local scriptsFolder = workspace:FindFirstChild("The-Blur-Lasers")
-if scriptsFolder then
-    scriptsFolder = scriptsFolder:FindFirstChild("Main")
-    if scriptsFolder then
-        scriptsFolder = scriptsFolder:FindFirstChild("Scripts")
+-- Require modules (with retry for Rojo sync)
+local function findScriptsFolder(maxRetries)
+    maxRetries = maxRetries or 10
+    for i = 1, maxRetries do
+        local blurLasers = workspace:FindFirstChild("The-Blur-Lasers")
+        if blurLasers then
+            local main = blurLasers:FindFirstChild("Main")
+            if main then
+                local scripts = main:FindFirstChild("Scripts")
+                if scripts then
+                    return scripts
+                end
+            end
+        end
+        task.wait(0.5)
     end
+    return nil
 end
+
+local scriptsFolder = findScriptsFolder(10)
 if not scriptsFolder then
-    warn("[The-Blur] Could not find Scripts folder!")
+    warn("[The-Blur] Could not find Scripts folder after retries!")
     return
 end
 

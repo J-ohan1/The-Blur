@@ -1,0 +1,11 @@
+{
+  "$className": "Part",
+  "$properties": {
+    "Size": {"type": "Vector3", "value": [38.4, 21.6, 0.5]},
+    "Anchored": true,
+    "BrickColor": "Really black",
+    "Material": "SmoothPlastic",
+    "Position": {"type": "Vector3", "value": [0, 10.8, 0]},
+    "Transparency": 0
+  }
+}

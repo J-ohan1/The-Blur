@@ -1,0 +1,14 @@
+{
+  "name": "The-Blur-Lasers",
+  "tree": {
+    "$className": "DataModel",
+    "Workspace": {
+      "$path": "src/workspace"
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "$path": "src/starterplayer/StarterPlayerScripts"
+      }
+    }
+  }
+}
