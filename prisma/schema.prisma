@@ -1,0 +1,122 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Users & Identity ───────────────────────────────────────────
+
+model User {
+  id                  String    @id @default(cuid())
+  discordId           String?   @unique
+  robloxId            String?   @unique
+  robloxUsername      String?
+  discordUsername     String?
+  discordAvatar       String?
+  displayPreference   String    @default("roblox") // "roblox" or "discord"
+  role                String    @default("normal") // staff, whitelisted, temp_whitelisted, normal, blacklisted
+  tempWhitelistedBy   String?   // userId who gave temp whitelist
+  tempWhitelistExpiresAt DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  sessions            Session[]
+  showFiles           ShowFile[]
+  loginCodes          LoginCode[]
+  hubEffects          HubEffect[]
+  blacklistEntries    BlacklistEntry[]
+}
+
+// ─── Account Linking ────────────────────────────────────────────
+
+model AccountLink {
+  id          String   @id @default(cuid())
+  discordId   String
+  robloxId    String
+  isPrimary   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@unique([discordId, robloxId])
+}
+
+// ─── Codes (Login + Verification) ──────────────────────────────
+
+model LoginCode {
+  id              String    @id @default(cuid())
+  code            String    @unique // 6-char alphanumeric
+  type            String    // "login" or "verification"
+  userId          String?   // for login codes
+  robloxId        String?   // for verification codes
+  robloxUsername  String?   // for verification codes
+  robloxPlaceId   String?   // for verification codes (game that generated it)
+  expiresAt       DateTime
+  usedAt          DateTime?
+  createdAt       DateTime  @default(now())
+
+  user            User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+// ─── Sessions ───────────────────────────────────────────────────
+
+model Session {
+  id          String   @id @default(cuid())
+  token       String   @unique
+  userId      String
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── Show Files ─────────────────────────────────────────────────
+
+model ShowFile {
+  id              String    @id @default(cuid())
+  userId          String
+  name            String
+  description     String?
+  data            String    // JSON: groups, effects, positions, timecode (no keybinds)
+  robloxPlaceId   String?   // linked Roblox place ID
+  robloxGameId    String?   // specific game instance
+  linkedAt        DateTime?
+  relinkableAt    DateTime? // 3-day cooldown for relinking
+  lastSavedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+}
+
+// ─── Hub (Community Effects) ────────────────────────────────────
+
+model HubEffect {
+  id          String   @id @default(cuid())
+  name        String
+  authorId    String
+  authorName  String
+  type        String   // movement, pattern, chase, strobe, wave, custom
+  tags        String   // JSON array of strings
+  data        String   // JSON effect data (frames, etc.)
+  downloads   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
+
+// ─── Blacklist ──────────────────────────────────────────────────
+
+model BlacklistEntry {
+  id              String   @id @default(cuid())
+  robloxUsername  String   @unique
+  robloxId        String?
+  reason          String?
+  addedBy         String?
+  createdAt       DateTime @default(now())
+
+  user            User?    @relation(fields: [addedBy], references: [id], onDelete: SetNull)
+}
