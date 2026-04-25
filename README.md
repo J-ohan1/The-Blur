@@ -29,7 +29,7 @@ Discord Bot ←→ Website ←→ Roblox Game
 - **Styling**: Tailwind CSS 4 + shadcn/ui
 - **Database**: Prisma ORM with SQLite
 - **State**: Zustand + TanStack Query
-- **Real-time**: Socket.IO (laser-ws mini-service)
+- **Real-time**: Socket.IO ([The-Blur-WS repo](https://github.com/J-ohan1/The-Blur-WS))
 - **Runtime**: Bun
 
 ## Project Structure
@@ -52,8 +52,6 @@ Discord Bot ←→ Website ←→ Roblox Game
 │   ├── hooks/                  # Custom hooks
 │   ├── lib/                    # Utilities (auth, db, etc.)
 │   └── store/                  # Zustand stores
-├── mini-services/
-│   └── laser-ws/               # Socket.IO WebSocket service (port 3003)
 ├── prisma/
 │   └── schema.prisma           # Database schema
 └── public/                     # Static assets
@@ -85,21 +83,6 @@ bun run db:push
 # Start the Next.js dev server (port 3000)
 bun run dev
 ```
-
-### Start the WebSocket Service
-
-```bash
-cd mini-services/laser-ws
-bun install
-bun run dev
-```
-
-The WebSocket service runs on **port 3003** and handles:
-- Game connections (verification code validation)
-- Laser command queuing
-- Heartbeat monitoring
-- Player list tracking
-- Real-time events via Socket.IO
 
 ### Environment Variables
 
